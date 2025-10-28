@@ -135,6 +135,11 @@ To enable trading functionality, you need to:
 
 **⚠️ Security Warning**: Never commit private keys or expose them in your code. Use environment variables or secure key management.
 
+**Note on Dependencies**: This project uses `@polymarket/clob-client` which has transitive dependencies with known vulnerabilities in older versions of `axios`. These vulnerabilities (SSRF, CSRF) are mitigated in this use case because:
+- The server only connects to trusted Polymarket API endpoints
+- It runs locally on user machines, not as a public server
+- All API interactions are authenticated and controlled
+
 ## License
 
 MIT
