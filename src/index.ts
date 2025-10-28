@@ -9,8 +9,12 @@ import {
 	type Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 
-// Polymarket Gamma API base URL
-const GAMMA_API_BASE = "https://gamma-api.polymarket.com";
+// API Configuration
+const API_CONFIG = {
+	GAMMA_API_BASE:
+		process.env.GAMMA_API_BASE || "https://gamma-api.polymarket.com",
+	CLOB_API_BASE: process.env.CLOB_API_BASE || "https://clob.polymarket.com",
+};
 
 // Tool definitions
 const TOOLS: Tool[] = [
@@ -131,7 +135,7 @@ const TOOLS: Tool[] = [
 
 // Helper function to make API requests
 async function fetchGammaAPI(endpoint: string): Promise<unknown> {
-	const url = `${GAMMA_API_BASE}${endpoint}`;
+	const url = `${API_CONFIG.GAMMA_API_BASE}${endpoint}`;
 	const response = await fetch(url);
 
 	if (!response.ok) {
@@ -145,7 +149,7 @@ async function fetchGammaAPI(endpoint: string): Promise<unknown> {
 
 // Helper function to fetch CLOB API
 async function fetchClobAPI(endpoint: string): Promise<unknown> {
-	const url = `https://clob.polymarket.com${endpoint}`;
+	const url = `${API_CONFIG.CLOB_API_BASE}${endpoint}`;
 	const response = await fetch(url);
 
 	if (!response.ok) {

@@ -77,7 +77,11 @@ export class PolymarketTrading {
 		}
 
 		const side: Side = args.side === "BUY" ? Side.BUY : Side.SELL;
-		const orderType: OrderType = OrderType[args.orderType || "GTC"];
+
+		// Validate and convert order type
+		const orderTypeStr = args.orderType || "GTC";
+		const orderType: OrderType.GTC | OrderType.GTD =
+			orderTypeStr === "GTD" ? OrderType.GTD : OrderType.GTC;
 
 		const userOrder: UserOrder = {
 			tokenID: args.tokenId,
@@ -92,7 +96,7 @@ export class PolymarketTrading {
 				tickSize: "0.001",
 				negRisk: false,
 			},
-			orderType as OrderType.GTC | OrderType.GTD,
+			orderType,
 		);
 	}
 
@@ -110,7 +114,11 @@ export class PolymarketTrading {
 		}
 
 		const side: Side = args.side === "BUY" ? Side.BUY : Side.SELL;
-		const orderType: OrderType = OrderType[args.orderType || "FOK"];
+
+		// Validate and convert order type
+		const orderTypeStr = args.orderType || "FOK";
+		const orderType: OrderType.FOK | OrderType.FAK =
+			orderTypeStr === "FAK" ? OrderType.FAK : OrderType.FOK;
 
 		const userMarketOrder = {
 			tokenID: args.tokenId,
@@ -124,7 +132,7 @@ export class PolymarketTrading {
 				tickSize: "0.001",
 				negRisk: false,
 			},
-			orderType as OrderType.FOK | OrderType.FAK,
+			orderType,
 		);
 	}
 
