@@ -18,7 +18,7 @@ export async function listActiveMarkets(
 }
 
 export async function searchMarkets(query: string): Promise<unknown> {
-	return fetchGammaAPI(`/public-search?query=${encodeURIComponent(query)}`);
+	return fetchGammaAPI(`/public-search?q=${encodeURIComponent(query)}`);
 }
 
 export async function getMarketsByTag(
