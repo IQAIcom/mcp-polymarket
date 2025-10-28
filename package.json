@@ -1,0 +1,38 @@
+{
+	"name": "mcp-polymarket",
+	"version": "1.0.0",
+	"description": "Polymarket MCP Server - Model Context Protocol server for Polymarket trading",
+	"type": "module",
+	"main": "build/index.js",
+	"bin": {
+		"mcp-polymarket": "build/index.js"
+	},
+	"scripts": {
+		"build": "tsc",
+		"watch": "tsc --watch",
+		"prepare": "npm run build",
+		"check": "biome check --write .",
+		"lint": "biome lint .",
+		"format": "biome format --write ."
+	},
+	"keywords": [
+		"mcp",
+		"polymarket",
+		"trading",
+		"api",
+		"model-context-protocol"
+	],
+	"author": "",
+	"license": "MIT",
+	"dependencies": {
+		"@modelcontextprotocol/sdk": "^1.20.2",
+		"@polymarket/clob-client": "^4.22.8",
+		"ethers": "^6.15.0",
+		"zod": "^3.25.76"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.3.1",
+		"@types/node": "^24.9.1",
+		"typescript": "^5.9.3"
+	}
+}
