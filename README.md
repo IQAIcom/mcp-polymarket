@@ -87,21 +87,52 @@ This server uses the following Polymarket APIs:
 
 ### Build
 ```bash
-npm run build
+pnpm run build
 ```
 
 ### Watch Mode
 ```bash
-npm run watch
+pnpm run watch
 ```
 
 ### Linting and Formatting
 This project uses Biome for code quality:
 
 ```bash
-npm run check    # Check and fix issues
-npm run lint     # Lint only
-npm run format   # Format only
+pnpm run check    # Check and fix issues
+pnpm run lint     # Lint only
+pnpm run format   # Format only
+```
+
+### Release Management
+
+This project uses [Changesets](https://github.com/changesets/changesets) for version management and automated releases.
+
+#### Creating a changeset
+When you make changes that should trigger a release, create a changeset:
+
+```bash
+pnpm changeset
+```
+
+This will prompt you to:
+1. Select which packages to include (for this single package, just select it)
+2. Choose the type of change (patch, minor, or major)
+3. Write a description of the changes
+
+#### Release Process
+1. Create and merge your PR with the changeset
+2. The GitHub Action will automatically create a "Release PR" 
+3. When the Release PR is merged, it will:
+   - Update the version in `package.json`
+   - Generate/update `CHANGELOG.md`
+   - Create a git tag
+   - Publish to npm (if configured)
+
+#### Manual Release (for maintainers)
+```bash
+pnpm run version  # Updates version and changelog
+pnpm run release  # Builds and publishes to npm
 ```
 
 ## Project Structure
@@ -146,12 +177,28 @@ MIT
 
 ## Contributing
 
-Contributions are welcome! Please ensure all code passes linting and type checking:
+Contributions are welcome! Please follow these steps:
 
-```bash
-npm run build
-npm run check
-```
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature-name`
+3. Make your changes
+4. Ensure all code passes linting and type checking:
+   ```bash
+   pnpm run build
+   pnpm run check
+   ```
+5. Create a changeset for your changes:
+   ```bash
+   pnpm changeset
+   ```
+6. Commit your changes and push to your fork
+7. Create a Pull Request
+
+### PR Requirements
+- [ ] All tests pass
+- [ ] Code is properly formatted and linted
+- [ ] A changeset is included (unless it's a docs-only change)
+- [ ] PR description follows the template
 
 ## Support
 
