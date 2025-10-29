@@ -53,6 +53,14 @@ import {
 	handleUpdateBalanceAllowance,
 	UpdateBalanceAllowanceSchema,
 } from "./tools/updateBalanceAllowance.js";
+import {
+	CheckTokenAllowancesSchema,
+	handleCheckTokenAllowances,
+} from "./tools/checkTokenAllowances.js";
+import {
+	SetTokenAllowancesSchema,
+	handleSetTokenAllowances,
+} from "./tools/setTokenAllowances.js";
 
 const server = new FastMCP({
 	name: "mcp-polymarket",
@@ -186,6 +194,22 @@ if (hasPrivateKey) {
 			"Update balance and allowance for the authenticated account. Required before trading.",
 		parameters: UpdateBalanceAllowanceSchema,
 		execute: handleUpdateBalanceAllowance,
+	});
+
+	server.addTool({
+		name: "check_token_allowances",
+		description:
+			"Check the current token allowances for USDC and Conditional Tokens. This shows if the contracts are approved to spend tokens on your behalf.",
+		parameters: CheckTokenAllowancesSchema,
+		execute: handleCheckTokenAllowances,
+	});
+
+	server.addTool({
+		name: "set_token_allowances",
+		description:
+			"Set token allowances for USDC and Conditional Tokens. This must be called before you can trade. It approves the CTF and Exchange contracts to spend your tokens.",
+		parameters: SetTokenAllowancesSchema,
+		execute: handleSetTokenAllowances,
 	});
 
 	console.error(
