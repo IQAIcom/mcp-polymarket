@@ -14,7 +14,6 @@
 		"check": "biome check --write .",
 		"lint": "biome lint .",
 		"format": "biome format --write .",
-		"test:manual": "tsx test-server.ts",
 		"changeset": "changeset",
 		"version": "changeset version",
 		"publish-packages": "pnpm run build && changeset publish"
