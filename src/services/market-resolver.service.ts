@@ -46,7 +46,7 @@ export class MarketResolverService {
 
 		const marketInfo: MarketInfo = {
 			question: market.question,
-			slug: marketSlug!,
+			slug: marketSlug as string,
 			endDate: market.endDate,
 			clobTokenIds: tokenIds,
 			tickSize: resolvedTickSize,
