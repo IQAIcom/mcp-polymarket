@@ -6,7 +6,16 @@
 		"useIgnoreFile": false
 	},
 	"files": {
-		"ignoreUnknown": false
+		"ignoreUnknown": false,
+		"includes": [
+			"**",
+			"!dist",
+			"!build",
+			"!**/*.lock",
+			"!**/*.log",
+			"!**/.next",
+			"!**/Api.ts"
+		]
 	},
 	"formatter": {
 		"enabled": true,
