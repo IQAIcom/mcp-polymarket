@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getAllowanceService } from "../services/index.js";
+import { getAllowanceService } from "../services/service-container.js";
 
 export const CheckTokenAllowancesSchema = z.object({});
 

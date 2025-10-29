@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getOrderService } from "../services/index.js";
+import { getOrderService } from "../services/service-container.js";
 
 export const CancelAllOrdersSchema = z.object({});
 

@@ -11,9 +11,9 @@ import { PortfolioService } from "./portfolio.service.js";
 
 /**
  * Service container that manages service lifecycle and dependencies
- * Follows Dependency Injection and Single Responsibility principles
+ * Singleton pattern with lazy initialization
  */
-export class ServiceContainer {
+class ServiceContainer {
 	private static instance: ServiceContainer | null = null;
 	private initializationPromise: Promise<void> | null = null;
 
@@ -123,4 +123,31 @@ export class ServiceContainer {
 		}
 		return this.portfolioService;
 	}
+}
+
+// Singleton instance
+const container = ServiceContainer.getInstance();
+
+/**
+ * Get the allowance service instance
+ * Automatically initializes services on first access
+ */
+export async function getAllowanceService(): Promise<AllowanceService> {
+	return container.getAllowanceService();
+}
+
+/**
+ * Get the order service instance
+ * Automatically initializes services on first access
+ */
+export async function getOrderService(): Promise<OrderService> {
+	return container.getOrderService();
+}
+
+/**
+ * Get the portfolio service instance
+ * Automatically initializes services on first access
+ */
+export async function getPortfolioService(): Promise<PortfolioService> {
+	return container.getPortfolioService();
 }

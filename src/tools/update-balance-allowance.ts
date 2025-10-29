@@ -1,6 +1,6 @@
 import { AssetType } from "@polymarket/clob-client";
 import { z } from "zod";
-import { getPortfolioService } from "../services/index.js";
+import { getPortfolioService } from "../services/service-container.js";
 
 export const UpdateBalanceAllowanceSchema = z.object({
 	assetType: z
