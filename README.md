@@ -67,7 +67,7 @@ The easiest way to use this MCP server is with `npx`, which runs the package dir
 If you want to modify the server or contribute to development:
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/IQAIcom/mcp-polymarket
 cd mcp-polymarket
 pnpm install
 pnpm run build
