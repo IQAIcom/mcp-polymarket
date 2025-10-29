@@ -1,4 +1,3 @@
-import { Wallet } from "@ethersproject/wallet";
 import type {
 	BalanceAllowanceParams,
 	OpenOrderParams,
@@ -6,6 +5,8 @@ import type {
 	UserOrder,
 } from "@polymarket/clob-client";
 import { ClobClient, OrderType, Side } from "@polymarket/clob-client";
+import { Wallet } from "ethers";
+import { privateKeyToAccount } from "viem/accounts";
 
 /**
  * Interface for trading configuration
@@ -23,6 +24,7 @@ export interface TradingConfig {
 export class PolymarketTrading {
 	private client: ClobClient | null = null;
 	private config: TradingConfig;
+	private viemAccount: ReturnType<typeof privateKeyToAccount> | null = null;
 
 	constructor(config: TradingConfig) {
 		this.config = {
@@ -36,14 +38,18 @@ export class PolymarketTrading {
 	 * Initialize the CLOB client with credentials
 	 */
 	async initialize(): Promise<void> {
-		const signer = new Wallet(this.config.privateKey);
+		// Create both viem account and ethers wallet for compatibility
+		this.viemAccount = privateKeyToAccount(
+			this.config.privateKey as `0x${string}`,
+		);
+		const ethersSigner = new Wallet(this.config.privateKey);
 		const host = "https://clob.polymarket.com";
 
 		// Create API credentials first
 		const tempClient = new ClobClient(
 			host,
 			this.config.chainId || 137,
-			signer,
+			ethersSigner,
 			undefined,
 			this.config.signatureType,
 			this.config.funderAddress,
@@ -55,7 +61,7 @@ export class PolymarketTrading {
 		this.client = new ClobClient(
 			host,
 			this.config.chainId || 137,
-			signer,
+			ethersSigner,
 			creds,
 			this.config.signatureType,
 			this.config.funderAddress,
@@ -211,5 +217,19 @@ export class PolymarketTrading {
 		}
 
 		return this.client.updateBalanceAllowance(params);
+	}
+
+	/**
+	 * Get the viem account for direct blockchain interactions
+	 */
+	getViemAccount(): ReturnType<typeof privateKeyToAccount> | null {
+		return this.viemAccount;
+	}
+
+	/**
+	 * Get the account address
+	 */
+	getAddress(): string | null {
+		return this.viemAccount?.address || null;
 	}
 }
