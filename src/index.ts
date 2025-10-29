@@ -61,6 +61,10 @@ import {
 	SetTokenAllowancesSchema,
 	handleSetTokenAllowances,
 } from "./tools/setTokenAllowances.js";
+import {
+	GetPortfolioSchema,
+	handleGetPortfolio,
+} from "./tools/getPortfolio.js";
 
 const server = new FastMCP({
 	name: "mcp-polymarket",
@@ -130,7 +134,7 @@ if (hasPrivateKey) {
 	server.addTool({
 		name: "place_order",
 		description:
-			"Place a limit order on Polymarket. Places a buy or sell order at a specific price.",
+			"Place a limit order on Polymarket. You can specify either a market slug + outcome (YES/NO) for easy trading, or use a direct tokenId. The tool automatically fetches market details and tick size when using slug.",
 		parameters: PlaceOrderSchema,
 		execute: handlePlaceOrder,
 	});
@@ -138,7 +142,7 @@ if (hasPrivateKey) {
 	server.addTool({
 		name: "place_market_order",
 		description:
-			"Place a market order (FOK or FAK) on Polymarket. Executes immediately at market price.",
+			"Place a market order (FOK or FAK) on Polymarket that executes immediately. You can specify either a market slug + outcome (YES/NO) for easy trading, or use a direct tokenId. The tool automatically fetches market details and tick size when using slug.",
 		parameters: PlaceMarketOrderSchema,
 		execute: handlePlaceMarketOrder,
 	});
@@ -210,6 +214,14 @@ if (hasPrivateKey) {
 			"Set token allowances for USDC and Conditional Tokens. This must be called before you can trade. It approves the CTF and Exchange contracts to spend your tokens.",
 		parameters: SetTokenAllowancesSchema,
 		execute: handleSetTokenAllowances,
+	});
+
+	server.addTool({
+		name: "get_portfolio",
+		description:
+			"Get complete portfolio including wallet USDC balance, Polymarket balance, all open positions, and unrealized P&L.",
+		parameters: GetPortfolioSchema,
+		execute: handleGetPortfolio,
 	});
 
 	console.error(

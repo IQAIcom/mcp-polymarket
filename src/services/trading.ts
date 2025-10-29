@@ -54,6 +54,76 @@ export interface SetAllowanceResult {
 }
 
 /**
+ * Interface for market information from Gamma API
+ */
+export interface MarketInfo {
+	question: string;
+	slug: string;
+	endDate: string;
+	clobTokenIds: string[];
+	tickSize: string;
+}
+
+/**
+ * Interface for resolved market details
+ */
+export interface ResolvedMarketDetails {
+	tokenId: string;
+	tickSize: string;
+	marketInfo: MarketInfo | null;
+	outcome?: "YES" | "NO";
+}
+
+/**
+ * Interface for place order arguments
+ */
+export interface PlaceOrderArgs {
+	marketSlug?: string;
+	outcome?: "YES" | "NO";
+	tokenId?: string;
+	price: number;
+	size: number;
+	side: "BUY" | "SELL";
+	orderType?: "GTC" | "GTD";
+	tickSize?: string;
+}
+
+/**
+ * Interface for place market order arguments
+ */
+export interface PlaceMarketOrderArgs {
+	marketSlug?: string;
+	outcome?: "YES" | "NO";
+	tokenId?: string;
+	amount: number;
+	side: "BUY" | "SELL";
+	orderType?: "FOK" | "FAK";
+	tickSize?: string;
+}
+
+/**
+ * Interface for order response
+ */
+export interface OrderResponse {
+	status: string;
+	market: MarketInfo | null;
+	orderResponse: unknown;
+	orderDetails: {
+		outcome: string;
+		tokenId: string;
+		side: string;
+		orderType: string;
+		tickSize: string;
+		inputMethod: string;
+		price?: number;
+		size?: number;
+		totalCost?: string;
+		amount?: number;
+	};
+	timestamp: string;
+}
+
+/**
  * Class to handle Polymarket trading operations
  */
 export class PolymarketTrading {
@@ -98,6 +168,68 @@ export class PolymarketTrading {
 			usdcAllowanceCtf: usdcAllowanceCtf.toString(),
 			usdcAllowanceExchange: usdcAllowanceExchange.toString(),
 			conditionalTokensAllowanceExchange,
+		};
+	}
+
+	/**
+	 * Resolve market details from slug or use direct tokenId
+	 * @private
+	 */
+	private async resolveMarketDetails(
+		marketSlug?: string,
+		outcome?: "YES" | "NO",
+		tokenId?: string,
+		tickSize?: string,
+	): Promise<ResolvedMarketDetails> {
+		// Validate that we have either tokenId OR (marketSlug + outcome)
+		if (!tokenId && (!marketSlug || !outcome)) {
+			throw new Error(
+				"Either provide tokenId directly, or provide both marketSlug and outcome",
+			);
+		}
+
+		if (tokenId) {
+			// Direct tokenId provided
+			return {
+				tokenId,
+				tickSize: tickSize || "0.01",
+				marketInfo: null,
+			};
+		}
+
+		// Fetch market details from Gamma API
+		console.log(`Fetching market details for: ${marketSlug}`);
+		const response = await fetch(
+			`https://gamma-api.polymarket.com/markets?slug=${marketSlug}`,
+		);
+		const markets = await response.json();
+
+		if (!markets || markets.length === 0) {
+			throw new Error(`Market not found: ${marketSlug}`);
+		}
+
+		const market = markets[0];
+		const tokenIds = JSON.parse(market.clobTokenIds);
+		const resolvedTokenId = outcome === "YES" ? tokenIds[0] : tokenIds[1];
+		const resolvedTickSize = market.orderPriceMinTickSize.toString();
+
+		const marketInfo: MarketInfo = {
+			question: market.question,
+			slug: marketSlug!,
+			endDate: market.endDate,
+			clobTokenIds: tokenIds,
+			tickSize: resolvedTickSize,
+		};
+
+		console.log(`Market: ${market.question}`);
+		console.log(`Token ID (${outcome}): ${resolvedTokenId}`);
+		console.log(`Tick Size: ${resolvedTickSize}`);
+
+		return {
+			tokenId: resolvedTokenId,
+			tickSize: resolvedTickSize,
+			marketInfo,
+			outcome,
 		};
 	}
 
@@ -208,77 +340,112 @@ export class PolymarketTrading {
 	}
 
 	/**
-	 * Place a new order
+	 * Place a new order with support for market slug or direct tokenId
 	 */
-	async placeOrder(args: {
-		tokenId: string;
-		price: number;
-		size: number;
-		side: "BUY" | "SELL";
-		orderType?: "GTC" | "GTD";
-	}): Promise<unknown> {
+	async placeOrder(args: PlaceOrderArgs): Promise<OrderResponse> {
 		if (!this.client) {
 			throw new Error("Client not initialized. Call initialize() first.");
 		}
 
-		const side: Side = args.side === "BUY" ? Side.BUY : Side.SELL;
+		// Resolve market details
+		const resolved = await this.resolveMarketDetails(
+			args.marketSlug,
+			args.outcome,
+			args.tokenId,
+			args.tickSize,
+		);
 
-		// Validate and convert order type
+		const side: Side = args.side === "BUY" ? Side.BUY : Side.SELL;
 		const orderTypeStr = args.orderType || "GTC";
 		const orderType: OrderType.GTC | OrderType.GTD =
 			orderTypeStr === "GTD" ? OrderType.GTD : OrderType.GTC;
 
 		const userOrder: UserOrder = {
-			tokenID: args.tokenId,
+			tokenID: resolved.tokenId,
 			price: args.price,
 			size: args.size,
 			side: side,
 		};
 
-		return this.client.createAndPostOrder(
+		const orderResponse = await this.client.createAndPostOrder(
 			userOrder,
 			{
-				tickSize: "0.001",
+				tickSize: resolved.tickSize as any,
 				negRisk: false,
 			},
 			orderType,
 		);
+
+		return {
+			status: "success",
+			market: resolved.marketInfo,
+			orderResponse,
+			orderDetails: {
+				outcome: resolved.outcome || "Unknown (using direct tokenId)",
+				tokenId: resolved.tokenId,
+				price: args.price,
+				size: args.size,
+				side: args.side,
+				orderType: orderTypeStr,
+				tickSize: resolved.tickSize,
+				totalCost: (args.price * args.size).toFixed(4),
+				inputMethod: args.tokenId ? "Direct tokenId" : "Market slug + outcome",
+			},
+			timestamp: new Date().toISOString(),
+		};
 	}
 
 	/**
-	 * Place a market order (FOK or FAK)
+	 * Place a market order (FOK or FAK) with support for market slug or direct tokenId
 	 */
-	async placeMarketOrder(args: {
-		tokenId: string;
-		amount: number;
-		side: "BUY" | "SELL";
-		orderType?: "FOK" | "FAK";
-	}): Promise<unknown> {
+	async placeMarketOrder(args: PlaceMarketOrderArgs): Promise<OrderResponse> {
 		if (!this.client) {
 			throw new Error("Client not initialized. Call initialize() first.");
 		}
 
-		const side: Side = args.side === "BUY" ? Side.BUY : Side.SELL;
+		// Resolve market details
+		const resolved = await this.resolveMarketDetails(
+			args.marketSlug,
+			args.outcome,
+			args.tokenId,
+			args.tickSize,
+		);
 
-		// Validate and convert order type
+		const side: Side = args.side === "BUY" ? Side.BUY : Side.SELL;
 		const orderTypeStr = args.orderType || "FOK";
 		const orderType: OrderType.FOK | OrderType.FAK =
 			orderTypeStr === "FAK" ? OrderType.FAK : OrderType.FOK;
 
 		const userMarketOrder = {
-			tokenID: args.tokenId,
+			tokenID: resolved.tokenId,
 			amount: args.amount,
 			side: side,
 		};
 
-		return this.client.createAndPostMarketOrder(
+		const orderResponse = await this.client.createAndPostMarketOrder(
 			userMarketOrder,
 			{
-				tickSize: "0.001",
+				tickSize: resolved.tickSize as any,
 				negRisk: false,
 			},
 			orderType,
 		);
+
+		return {
+			status: "success",
+			market: resolved.marketInfo,
+			orderResponse,
+			orderDetails: {
+				outcome: resolved.outcome || "Unknown (using direct tokenId)",
+				tokenId: resolved.tokenId,
+				amount: args.amount,
+				side: args.side,
+				orderType: orderTypeStr,
+				tickSize: resolved.tickSize,
+				inputMethod: args.tokenId ? "Direct tokenId" : "Market slug + outcome",
+			},
+			timestamp: new Date().toISOString(),
+		};
 	}
 
 	/**
@@ -356,6 +523,93 @@ export class PolymarketTrading {
 		}
 
 		return this.client.updateBalanceAllowance(params);
+	}
+
+	/**
+	 * Get complete portfolio including wallet balance and positions
+	 */
+	async getPortfolio(): Promise<unknown> {
+		if (!this.client) {
+			throw new Error("Client not initialized. Call initialize() first.");
+		}
+
+		try {
+			// Get USDC balance from wallet
+			const usdc = new Contract(USDC_ADDRESS, USDC_ABI, this.provider);
+			const balance = await usdc.balanceOf(this.signer.address);
+			const decimals = await usdc.decimals();
+			const balanceFormatted = utils.formatUnits(balance, decimals);
+
+			// Get Polymarket balance
+			let polymarketBalance: string;
+			try {
+				const balanceData = await this.client.getBalanceAllowance({
+					asset_type: "COLLATERAL" as any,
+				});
+				polymarketBalance = (balanceData as any).balance;
+			} catch (error) {
+				polymarketBalance = "Unable to fetch";
+			}
+
+			// Get positions from Polymarket Data API
+			let positions: any[] = [];
+			let positionsError: string | null = null;
+			try {
+				const response = await fetch(
+					`https://data-api.polymarket.com/positions?sizeThreshold=1&limit=50&sortDirection=DESC&user=${this.signer.address}`,
+				);
+				const positionsData = await response.json();
+				positions = positionsData || [];
+			} catch (error) {
+				positionsError = (error as Error).message;
+				positions = [];
+			}
+
+			// Calculate portfolio summary
+			let totalPositionValue = 0;
+			let totalUnrealizedPnL = 0;
+
+			if (Array.isArray(positions)) {
+				for (const position of positions) {
+					if (position.size && position.price) {
+						totalPositionValue +=
+							Number.parseFloat(position.size) *
+							Number.parseFloat(position.price);
+					}
+					if (position.unrealizedPnl) {
+						totalUnrealizedPnL += Number.parseFloat(position.unrealizedPnl);
+					}
+				}
+			}
+
+			return {
+				status: "success",
+				portfolio: {
+					walletAddress: this.signer.address,
+					balances: {
+						usdcWalletBalance: balanceFormatted,
+						usdcPolymarketBalance: polymarketBalance,
+						totalLiquidBalance:
+							polymarketBalance !== "Unable to fetch"
+								? (
+										Number.parseFloat(balanceFormatted) +
+										Number.parseFloat(polymarketBalance)
+									).toFixed(6)
+								: "Unable to calculate",
+					},
+					positionsSummary: {
+						totalPositions: Array.isArray(positions) ? positions.length : 0,
+						totalPositionValue: totalPositionValue.toFixed(4),
+						totalUnrealizedPnL: totalUnrealizedPnL.toFixed(4),
+						positionsError: positionsError,
+					},
+					positions: positions,
+					timestamp: new Date().toISOString(),
+				},
+			};
+		} catch (error) {
+			throw new Error(`Failed to get portfolio: ${(error as Error).message}`);
+		}
 	}
 }
 
