@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.4
+
+### Patch Changes
+
+- 6c2982d: Adds dist in files
+
 ## 0.0.3
 
 ### Patch Changes
