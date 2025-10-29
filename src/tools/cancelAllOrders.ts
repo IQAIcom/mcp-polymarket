@@ -1,14 +1,15 @@
 import { z } from "zod";
-import { getTradingInstance, initializeTrading } from "../services/trading.js";
+import {
+	getOrderService,
+	initializeTradingServices,
+} from "../services/index.js";
 
 export const CancelAllOrdersSchema = z.object({});
 
 export async function handleCancelAllOrders(
 	_args: z.infer<typeof CancelAllOrdersSchema>,
 ) {
-	const trading = getTradingInstance();
-	await initializeTrading();
-
-	const result = await trading.cancelAllOrders();
+	await initializeTradingServices();
+	const result = await getOrderService().cancelAllOrders();
 	return JSON.stringify(result, null, 2);
 }

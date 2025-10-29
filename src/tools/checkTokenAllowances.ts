@@ -1,12 +1,14 @@
 import { z } from "zod";
-import { getTradingInstance } from "../services/trading.js";
+import {
+	getAllowanceService,
+	initializeTradingServices,
+} from "../services/index.js";
 
 export const CheckTokenAllowancesSchema = z.object({});
 
 export async function handleCheckTokenAllowances() {
-	const trading = getTradingInstance();
-
-	const result = await trading.checkAllowances();
+	await initializeTradingServices();
+	const result = await getAllowanceService().checkAllowances();
 	return JSON.stringify(
 		{
 			status: "success",

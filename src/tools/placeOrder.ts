@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { getTradingInstance, initializeTrading } from "../services/trading.js";
+import {
+	getOrderService,
+	initializeTradingServices,
+} from "../services/index.js";
 
 export const PlaceOrderSchema = z.object({
 	marketSlug: z
@@ -43,9 +46,7 @@ export const PlaceOrderSchema = z.object({
 });
 
 export async function handlePlaceOrder(args: z.infer<typeof PlaceOrderSchema>) {
-	const trading = getTradingInstance();
-	await initializeTrading();
-
-	const result = await trading.placeOrder(args);
+	await initializeTradingServices();
+	const result = await getOrderService().placeOrder(args);
 	return JSON.stringify(result, null, 2);
 }

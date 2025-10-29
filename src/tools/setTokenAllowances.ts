@@ -1,11 +1,13 @@
 import { z } from "zod";
-import { getTradingInstance } from "../services/trading.js";
+import {
+	getAllowanceService,
+	initializeTradingServices,
+} from "../services/index.js";
 
 export const SetTokenAllowancesSchema = z.object({});
 
 export async function handleSetTokenAllowances() {
-	const trading = getTradingInstance();
-
-	const result = await trading.setAllowances();
+	await initializeTradingServices();
+	const result = await getAllowanceService().setAllowances();
 	return JSON.stringify(result, null, 2);
 }

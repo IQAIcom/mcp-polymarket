@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { getTradingInstance, initializeTrading } from "../services/trading.js";
+import {
+	getOrderService,
+	initializeTradingServices,
+} from "../services/index.js";
 
 export const PlaceMarketOrderSchema = z.object({
 	marketSlug: z
@@ -20,7 +23,10 @@ export const PlaceMarketOrderSchema = z.object({
 		.describe(
 			"Direct token ID for the market outcome (alternative to marketSlug+outcome)",
 		),
-	amount: z.number().positive().describe("The amount to trade in USD"),
+	amount: z
+		.number()
+		.positive()
+		.describe("The amount to trade in USDC (for market orders)"),
 	side: z.enum(["BUY", "SELL"]).describe("The side of the order: BUY or SELL"),
 	orderType: z
 		.enum(["FOK", "FAK"])
@@ -37,9 +43,7 @@ export const PlaceMarketOrderSchema = z.object({
 export async function handlePlaceMarketOrder(
 	args: z.infer<typeof PlaceMarketOrderSchema>,
 ) {
-	const trading = getTradingInstance();
-	await initializeTrading();
-
-	const result = await trading.placeMarketOrder(args);
+	await initializeTradingServices();
+	const result = await getOrderService().placeMarketOrder(args);
 	return JSON.stringify(result, null, 2);
 }

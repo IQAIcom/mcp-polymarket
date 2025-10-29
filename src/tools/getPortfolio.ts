@@ -1,12 +1,13 @@
 import { z } from "zod";
-import { getTradingInstance, initializeTrading } from "../services/trading.js";
+import {
+	getPortfolioService,
+	initializeTradingServices,
+} from "../services/index.js";
 
 export const GetPortfolioSchema = z.object({});
 
 export async function handleGetPortfolio() {
-	const trading = getTradingInstance();
-	await initializeTrading();
-
-	const result = await trading.getPortfolio();
+	await initializeTradingServices();
+	const result = await getPortfolioService().getPortfolio();
 	return JSON.stringify(result, null, 2);
 }
