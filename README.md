@@ -30,8 +30,8 @@ Trading tools are automatically enabled when `POLYMARKET_PRIVATE_KEY` is configu
 ## Installation
 
 ```bash
-npm install
-npm run build
+pnpm install
+pnpm run build
 ```
 
 ## Configuration
