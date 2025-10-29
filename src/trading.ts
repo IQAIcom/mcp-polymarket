@@ -6,7 +6,6 @@ import type {
 } from "@polymarket/clob-client";
 import { ClobClient, OrderType, Side } from "@polymarket/clob-client";
 import { Wallet } from "ethers";
-import { privateKeyToAccount } from "viem/accounts";
 
 /**
  * Interface for trading configuration
@@ -24,7 +23,6 @@ export interface TradingConfig {
 export class PolymarketTrading {
 	private client: ClobClient | null = null;
 	private config: TradingConfig;
-	private viemAccount: ReturnType<typeof privateKeyToAccount> | null = null;
 
 	constructor(config: TradingConfig) {
 		this.config = {
@@ -38,10 +36,6 @@ export class PolymarketTrading {
 	 * Initialize the CLOB client with credentials
 	 */
 	async initialize(): Promise<void> {
-		// Create both viem account and ethers wallet for compatibility
-		this.viemAccount = privateKeyToAccount(
-			this.config.privateKey as `0x${string}`,
-		);
 		const ethersSigner = new Wallet(this.config.privateKey);
 		const host = "https://clob.polymarket.com";
 
@@ -217,19 +211,5 @@ export class PolymarketTrading {
 		}
 
 		return this.client.updateBalanceAllowance(params);
-	}
-
-	/**
-	 * Get the viem account for direct blockchain interactions
-	 */
-	getViemAccount(): ReturnType<typeof privateKeyToAccount> | null {
-		return this.viemAccount;
-	}
-
-	/**
-	 * Get the account address
-	 */
-	getAddress(): string | null {
-		return this.viemAccount?.address || null;
 	}
 }
