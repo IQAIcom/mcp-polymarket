@@ -1,6 +1,6 @@
 {
 	"name": "@iqai/mcp-polymarket",
-	"version": "1.0.0",
+	"version": "0.0.1",
 	"description": "Polymarket MCP Server - Model Context Protocol server for Polymarket trading",
 	"type": "module",
 	"main": "build/index.js",
