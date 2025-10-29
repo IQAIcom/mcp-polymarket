@@ -1,13 +1,10 @@
 import { z } from "zod";
-import {
-	getPortfolioService,
-	initializeTradingServices,
-} from "../services/index.js";
+import { getPortfolioService } from "../services/index.js";
 
 export const GetPortfolioSchema = z.object({});
 
 export async function handleGetPortfolio() {
-	await initializeTradingServices();
-	const result = await getPortfolioService().getPortfolio();
+	const portfolioService = await getPortfolioService();
+	const result = await portfolioService.getPortfolio();
 	return JSON.stringify(result, null, 2);
 }
