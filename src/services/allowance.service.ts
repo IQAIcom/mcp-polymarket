@@ -1,4 +1,4 @@
-import { Contract, constants, utils, type Wallet } from "ethers";
+import { Contract, constants, type Wallet } from "ethers";
 import {
 	CTF_ABI,
 	CTF_ADDRESS,
@@ -71,7 +71,6 @@ export class AllowanceService {
 			if (usdcAllowanceCtf.eq(0)) {
 				console.log("Setting USDC allowance for CTF...");
 				const txn = await usdc.approve(CTF_ADDRESS, constants.MaxUint256, {
-					gasPrice: utils.parseUnits("100", "gwei"),
 					gasLimit: 200000,
 				});
 				await txn.wait();
@@ -82,7 +81,6 @@ export class AllowanceService {
 			if (usdcAllowanceExchange.eq(0)) {
 				console.log("Setting USDC allowance for Exchange...");
 				const txn = await usdc.approve(EXCHANGE_ADDRESS, constants.MaxUint256, {
-					gasPrice: utils.parseUnits("100", "gwei"),
 					gasLimit: 200000,
 				});
 				await txn.wait();
@@ -93,7 +91,6 @@ export class AllowanceService {
 			if (!conditionalTokensAllowanceExchange) {
 				console.log("Setting Conditional Tokens approval for Exchange...");
 				const txn = await ctf.setApprovalForAll(EXCHANGE_ADDRESS, true, {
-					gasPrice: utils.parseUnits("100", "gwei"),
 					gasLimit: 200000,
 				});
 				await txn.wait();
