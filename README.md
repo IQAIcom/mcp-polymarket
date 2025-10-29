@@ -13,8 +13,19 @@ A Model Context Protocol (MCP) server implementation for interacting with Polyma
 - **get_all_tags**: Get all available market tags
 - **get_order_book**: View current order book for a market
 
-### Trading Tools (Requires Configuration)
-The trading functionality is implemented but requires proper configuration with private keys and wallet setup. See the `src/trading.ts` file for implementation details.
+### Trading Tools (Optional - Requires Private Key)
+Trading tools are automatically enabled when `POLYMARKET_PRIVATE_KEY` is configured:
+- **place_order**: Place limit orders (GTC/GTD)
+- **place_market_order**: Execute market orders immediately (FOK/FAK)
+- **get_open_orders**: View your open orders
+- **get_order**: Get details of a specific order
+- **cancel_order**: Cancel a specific order
+- **cancel_all_orders**: Cancel all open orders
+- **get_trade_history**: View your trade history
+- **get_balance_allowance**: Check account balances and allowances
+- **update_balance_allowance**: Update allowances (required before trading)
+
+**Note**: Without a private key configured, only read-only market data tools are available.
 
 ## Installation
 
@@ -34,6 +45,7 @@ Add this to your Claude Desktop configuration file:
 **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
+#### Read-Only Mode (Market Data Only)
 ```json
 {
   "mcpServers": {
@@ -45,11 +57,28 @@ Add this to your Claude Desktop configuration file:
 }
 ```
 
+#### Trading Mode (With Private Key)
+```json
+{
+  "mcpServers": {
+    "polymarket": {
+      "command": "node",
+      "args": ["/absolute/path/to/mcp-polymarket/build/index.js"],
+      "env": {
+        "POLYMARKET_PRIVATE_KEY": "your_private_key_here"
+      }
+    }
+  }
+}
+```
+
+**⚠️ Security Warning**: Your private key grants full access to your wallet. Only use this on trusted machines and never share your configuration file.
+
 ## Usage
 
 Once configured, you can use the tools through your MCP client. Here are some example queries:
 
-### Market Data Examples
+### Market Data Examples (Always Available)
 
 1. **Get a specific market**:
    ```
@@ -69,6 +98,28 @@ Once configured, you can use the tools through your MCP client. Here are some ex
 4. **Get order book**:
    ```
    Show me the order book for token ID "123456..."
+   ```
+
+### Trading Examples (Requires POLYMARKET_PRIVATE_KEY)
+
+1. **Check your balance**:
+   ```
+   Check my COLLATERAL balance
+   ```
+
+2. **Place a limit order**:
+   ```
+   Place a buy order for 100 shares at 0.65 price on token ID "123456..."
+   ```
+
+3. **View open orders**:
+   ```
+   Show me all my open orders
+   ```
+
+4. **Cancel an order**:
+   ```
+   Cancel order with ID "0x123..."
    ```
 
 ## API Documentation
@@ -140,13 +191,22 @@ pnpm run release  # Builds and publishes to npm
 ```
 mcp-polymarket/
 ├── src/
-│   ├── index.ts      # Main MCP server implementation
-│   └── trading.ts    # Trading functionality (requires configuration)
-├── build/            # Compiled JavaScript output
-├── package.json      # Project dependencies and scripts
-├── tsconfig.json     # TypeScript configuration
-├── biome.json        # Biome configuration
-└── README.md         # This file
+│   ├── services/          # Service layer
+│   │   ├── api.ts         # Gamma API client
+│   │   ├── markets.ts     # Market data services
+│   │   ├── orderbook.ts   # Order book services
+│   │   └── trading.ts     # Trading client (CLOB)
+│   ├── tools/             # MCP tool implementations
+│   │   ├── get*.ts        # Read-only market data tools
+│   │   ├── place*.ts      # Order placement tools (requires key)
+│   │   ├── cancel*.ts     # Order cancellation tools (requires key)
+│   │   └── update*.ts     # Account management tools (requires key)
+│   └── index.ts           # Main MCP server
+├── build/                 # Compiled JavaScript output
+├── package.json           # Project dependencies and scripts
+├── tsconfig.json          # TypeScript configuration
+├── biome.json             # Biome configuration
+└── README.md              # This file
 ```
 
 ## Technologies
@@ -158,13 +218,28 @@ mcp-polymarket/
 
 ## Trading Setup (Advanced)
 
-To enable trading functionality, you need to:
+To enable trading functionality:
 
-1. Set up a wallet with a private key
-2. Fund the wallet with USDC on Polygon
-3. Configure the trading client in your implementation
+1. **Set up a wallet with a private key**
+   - Create or use an existing Ethereum wallet
+   - Export the private key (never share this!)
 
-**⚠️ Security Warning**: Never commit private keys or expose them in your code. Use environment variables or secure key management.
+2. **Fund the wallet with USDC on Polygon**
+   - Bridge USDC to Polygon network
+   - Ensure you have enough for trading + gas fees
+
+3. **Configure the private key**
+   - Add `POLYMARKET_PRIVATE_KEY` to your MCP server configuration
+   - The server will automatically enable trading tools when detected
+
+4. **Update allowances (first time only)**
+   - Use `update_balance_allowance` tool before your first trade
+   - This approves the Polymarket contract to use your funds
+
+**⚠️ Security Warning**: 
+- Never commit private keys to version control
+- Only use private keys on trusted, secure machines
+- Consider using a dedicated wallet for trading with limited funds
 
 **Note on Dependencies**: This project uses `@polymarket/clob-client` which has transitive dependencies with known vulnerabilities in older versions of `axios`. These vulnerabilities (SSRF, CSRF) are mitigated in this use case because:
 - The server only connects to trusted Polymarket API endpoints
