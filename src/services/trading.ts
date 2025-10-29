@@ -5,7 +5,7 @@ import type {
 	UserOrder,
 } from "@polymarket/clob-client";
 import { ClobClient, OrderType, Side } from "@polymarket/clob-client";
-import { Contract, constants, providers, Wallet, utils } from "ethers";
+import { Contract, constants, providers, utils, Wallet } from "ethers";
 
 // Polygon Mainnet Contract Addresses
 const USDC_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
