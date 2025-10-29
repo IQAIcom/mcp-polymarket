@@ -1,31 +1,31 @@
 #!/usr/bin/env node
 
 import { FastMCP } from "fastmcp";
-import {
-	GetMarketBySlugSchema,
-	handleGetMarketBySlug,
-} from "./tools/getMarketBySlug.js";
+import { GetAllTagsSchema, handleGetAllTags } from "./tools/getAllTags.js";
 import {
 	GetEventBySlugSchema,
 	handleGetEventBySlug,
 } from "./tools/getEventBySlug.js";
 import {
-	ListActiveMarketsSchema,
-	handleListActiveMarkets,
-} from "./tools/listActiveMarkets.js";
-import {
-	SearchMarketsSchema,
-	handleSearchMarkets,
-} from "./tools/searchMarkets.js";
+	GetMarketBySlugSchema,
+	handleGetMarketBySlug,
+} from "./tools/getMarketBySlug.js";
 import {
 	GetMarketsByTagSchema,
 	handleGetMarketsByTag,
 } from "./tools/getMarketsByTag.js";
-import { GetAllTagsSchema, handleGetAllTags } from "./tools/getAllTags.js";
 import {
 	GetOrderBookSchema,
 	handleGetOrderBook,
 } from "./tools/getOrderBook.js";
+import {
+	handleListActiveMarkets,
+	ListActiveMarketsSchema,
+} from "./tools/listActiveMarkets.js";
+import {
+	handleSearchMarkets,
+	SearchMarketsSchema,
+} from "./tools/searchMarkets.js";
 
 const server = new FastMCP({
 	name: "mcp-polymarket",
