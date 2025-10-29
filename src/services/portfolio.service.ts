@@ -1,6 +1,6 @@
 import type { BalanceAllowanceParams } from "@polymarket/clob-client";
-import { AssetType, ClobClient } from "@polymarket/clob-client";
-import { Contract, providers, utils, Wallet } from "ethers";
+import { AssetType, type ClobClient } from "@polymarket/clob-client";
+import { Contract, type providers, utils, type Wallet } from "ethers";
 import { DATA_API_URL, USDC_ABI, USDC_ADDRESS } from "./constants.js";
 
 /**

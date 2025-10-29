@@ -4,13 +4,13 @@ import type {
 	TradeParams,
 	UserOrder,
 } from "@polymarket/clob-client";
-import { ClobClient, OrderType, Side } from "@polymarket/clob-client";
+import { type ClobClient, OrderType, Side } from "@polymarket/clob-client";
+import { MarketResolverService } from "./market-resolver.service.js";
 import type {
 	OrderResponse,
 	PlaceMarketOrderArgs,
 	PlaceOrderArgs,
 } from "./types.js";
-import { MarketResolverService } from "./market-resolver.service.js";
 
 /**
  * Service to handle order operations

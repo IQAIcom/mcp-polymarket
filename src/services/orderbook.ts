@@ -1,4 +1,4 @@
-import { type PolymarketAPI, getAPIInstance } from "./api.js";
+import { getAPIInstance, type PolymarketAPI } from "./api.js";
 
 /**
  * Class to handle Polymarket orderbook operations

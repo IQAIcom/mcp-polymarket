@@ -1,5 +1,5 @@
-import type { MarketInfo, ResolvedMarketDetails } from "./types.js";
 import { DEFAULT_TICK_SIZE, GAMMA_API_URL } from "./constants.js";
+import type { MarketInfo, ResolvedMarketDetails } from "./types.js";
 
 /**
  * Service to resolve market details from slugs or direct token IDs

@@ -1,5 +1,4 @@
-import { Contract, constants, utils, Wallet } from "ethers";
-import type { AllowanceStatus, SetAllowanceResult } from "./types.js";
+import { Contract, constants, utils, type Wallet } from "ethers";
 import {
 	CTF_ABI,
 	CTF_ADDRESS,
@@ -7,6 +6,7 @@ import {
 	USDC_ABI,
 	USDC_ADDRESS,
 } from "./constants.js";
+import type { AllowanceStatus, SetAllowanceResult } from "./types.js";
 
 /**
  * Service to handle token allowance operations
