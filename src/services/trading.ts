@@ -1,10 +1,16 @@
 import type {
 	BalanceAllowanceParams,
 	OpenOrderParams,
+	TickSize,
 	TradeParams,
 	UserOrder,
 } from "@polymarket/clob-client";
-import { ClobClient, OrderType, Side } from "@polymarket/clob-client";
+import {
+	AssetType,
+	ClobClient,
+	OrderType,
+	Side,
+} from "@polymarket/clob-client";
 import { Contract, constants, providers, utils, Wallet } from "ethers";
 
 // Polygon Mainnet Contract Addresses
@@ -370,7 +376,7 @@ export class PolymarketTrading {
 		const orderResponse = await this.client.createAndPostOrder(
 			userOrder,
 			{
-				tickSize: resolved.tickSize as any,
+				tickSize: resolved.tickSize as TickSize,
 				negRisk: false,
 			},
 			orderType,
@@ -425,7 +431,7 @@ export class PolymarketTrading {
 		const orderResponse = await this.client.createAndPostMarketOrder(
 			userMarketOrder,
 			{
-				tickSize: resolved.tickSize as any,
+				tickSize: resolved.tickSize as TickSize,
 				negRisk: false,
 			},
 			orderType,
@@ -544,10 +550,10 @@ export class PolymarketTrading {
 			let polymarketBalance: string;
 			try {
 				const balanceData = await this.client.getBalanceAllowance({
-					asset_type: "COLLATERAL" as any,
+					asset_type: AssetType.COLLATERAL,
 				});
-				polymarketBalance = (balanceData as any).balance;
-			} catch (error) {
+				polymarketBalance = balanceData.balance;
+			} catch {
 				polymarketBalance = "Unable to fetch";
 			}
 
