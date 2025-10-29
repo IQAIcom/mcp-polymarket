@@ -17,7 +17,7 @@
 		"test:manual": "tsx test-server.ts",
 		"changeset": "changeset",
 		"version": "changeset version",
-		"release": "pnpm run build && changeset publish"
+		"publish-packages": "pnpm run build && changeset publish"
 	},
 	"keywords": [
 		"mcp",
