@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { searchMarkets } from "../services/markets.js";
+import { getMarketsInstance } from "../services/markets.js";
 
 export const SearchMarketsSchema = z.object({
 	query: z.string().describe("Search query text"),
@@ -8,6 +8,7 @@ export const SearchMarketsSchema = z.object({
 export async function handleSearchMarkets(
 	args: z.infer<typeof SearchMarketsSchema>,
 ) {
-	const data = await searchMarkets(args.query);
+	const markets = getMarketsInstance();
+	const data = await markets.searchMarkets(args.query);
 	return JSON.stringify(data, null, 2);
 }

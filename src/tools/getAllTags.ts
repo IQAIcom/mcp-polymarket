@@ -1,9 +1,10 @@
 import { z } from "zod";
-import { getAllTags } from "../services/markets.js";
+import { getMarketsInstance } from "../services/markets.js";
 
 export const GetAllTagsSchema = z.object({});
 
 export async function handleGetAllTags() {
-	const data = await getAllTags();
+	const markets = getMarketsInstance();
+	const data = await markets.getAllTags();
 	return JSON.stringify(data, null, 2);
 }
