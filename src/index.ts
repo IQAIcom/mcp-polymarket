@@ -4,55 +4,55 @@ import { FastMCP } from "fastmcp";
 import {
 	CancelAllOrdersSchema,
 	handleCancelAllOrders,
-} from "./tools/cancelAllOrders.js";
-import { CancelOrderSchema, handleCancelOrder } from "./tools/cancelOrder.js";
-import { GetAllTagsSchema, handleGetAllTags } from "./tools/getAllTags.js";
+} from "./tools/cancel-all-orders.js";
+import { CancelOrderSchema, handleCancelOrder } from "./tools/cancel-order.js";
+import { GetAllTagsSchema, handleGetAllTags } from "./tools/get-all-tags.js";
 import {
 	GetBalanceAllowanceSchema,
 	handleGetBalanceAllowance,
-} from "./tools/getBalanceAllowance.js";
+} from "./tools/get-balance-allowance.js";
 import {
 	GetEventBySlugSchema,
 	handleGetEventBySlug,
-} from "./tools/getEventBySlug.js";
+} from "./tools/get-event-by-slug.js";
 import {
 	GetMarketBySlugSchema,
 	handleGetMarketBySlug,
-} from "./tools/getMarketBySlug.js";
+} from "./tools/get-market-by-slug.js";
 import {
 	GetMarketsByTagSchema,
 	handleGetMarketsByTag,
-} from "./tools/getMarketsByTag.js";
+} from "./tools/get-markets-by-tag.js";
 import {
 	GetOpenOrdersSchema,
 	handleGetOpenOrders,
-} from "./tools/getOpenOrders.js";
-import { GetOrderSchema, handleGetOrder } from "./tools/getOrder.js";
+} from "./tools/get-open-orders.js";
+import { GetOrderSchema, handleGetOrder } from "./tools/get-order.js";
 import {
 	GetOrderBookSchema,
 	handleGetOrderBook,
-} from "./tools/getOrderBook.js";
+} from "./tools/get-order-book.js";
 import {
 	GetTradeHistorySchema,
 	handleGetTradeHistory,
-} from "./tools/getTradeHistory.js";
+} from "./tools/get-trade-history.js";
 import {
 	handleListActiveMarkets,
 	ListActiveMarketsSchema,
-} from "./tools/listActiveMarkets.js";
+} from "./tools/list-active-markets.js";
 import {
 	handlePlaceMarketOrder,
 	PlaceMarketOrderSchema,
-} from "./tools/placeMarketOrder.js";
-import { handlePlaceOrder, PlaceOrderSchema } from "./tools/placeOrder.js";
+} from "./tools/place-market-order.js";
+import { handlePlaceOrder, PlaceOrderSchema } from "./tools/place-order.js";
 import {
 	handleSearchMarkets,
 	SearchMarketsSchema,
-} from "./tools/searchMarkets.js";
+} from "./tools/search-markets.js";
 import {
 	handleUpdateBalanceAllowance,
 	UpdateBalanceAllowanceSchema,
-} from "./tools/updateBalanceAllowance.js";
+} from "./tools/update-balance-allowance.js";
 
 const server = new FastMCP({
 	name: "mcp-polymarket",
