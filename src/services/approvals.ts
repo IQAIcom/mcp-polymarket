@@ -1,4 +1,4 @@
-import { Contract, constants, providers, Wallet } from "ethers";
+import { Contract, constants, providers, utils, Wallet } from "ethers";
 import { getConfig, POLYGON_ADDRESSES } from "./config.js";
 
 // Minimal ABIs needed for approvals
@@ -83,6 +83,108 @@ export class PolymarketApprovals {
 		this.signer = signer ?? getSignerFromEnv();
 	}
 
+	/** Ensure we have a Provider */
+	private getProvider(): providers.Provider {
+		const provider = this.signer.provider;
+		if (!provider) throw new Error("Signer provider is not available");
+		return provider;
+	}
+
+	/** Get the next pending nonce for this signer */
+	private async getPendingNonce(): Promise<number> {
+		return this.signer.getTransactionCount("pending");
+	}
+
+	/**
+	 * Build EIP-1559 fee overrides with a safe floor on Polygon.
+	 * Applies a +20% bump over suggested values and enforces a minimum priority fee.
+	 */
+	private async buildFeeOverrides(minPriorityFeeGwei?: number): Promise<{
+		maxFeePerGas: providers.TransactionRequest["maxFeePerGas"];
+		maxPriorityFeePerGas: providers.TransactionRequest["maxPriorityFeePerGas"];
+	}> {
+		const provider = this.getProvider();
+		const feeData = await provider.getFeeData();
+
+		const envMinPriGwei = Number(process.env.POLYMARKET_MIN_PRIORITY_FEE_GWEI);
+		const minPriGwei = Number.isFinite(envMinPriGwei)
+			? envMinPriGwei
+			: (minPriorityFeeGwei ?? 30); // default 30 gwei
+
+		const floorPri = utils.parseUnits(String(minPriGwei), "gwei");
+		const suggestedPri = feeData.maxPriorityFeePerGas
+			? feeData.maxPriorityFeePerGas
+					.mul(12)
+					.div(10) // +20%
+			: floorPri;
+		const maxPriorityFeePerGas = suggestedPri.gte(floorPri)
+			? suggestedPri
+			: floorPri;
+
+		const suggestedMaxFee = feeData.maxFeePerGas
+			? feeData.maxFeePerGas
+					.mul(12)
+					.div(10) // +20%
+			: undefined;
+		const minMaxFee = maxPriorityFeePerGas.mul(2);
+		const maxFeePerGas = suggestedMaxFee
+			? suggestedMaxFee.gte(minMaxFee)
+				? suggestedMaxFee
+				: minMaxFee
+			: minMaxFee;
+
+		return { maxFeePerGas, maxPriorityFeePerGas };
+	}
+
+	/**
+	 * Broadcast a tx with explicit nonce, using a single retry on replacement/nonce errors.
+	 * Returns the transaction hash (or confirmed receipt hash if waiting > 0).
+	 */
+	private async sendWithNonceAndRetry(
+		send: (
+			overrides: providers.TransactionRequest,
+		) => Promise<providers.TransactionResponse>,
+		nextNonceRef: { value: number },
+		waitConfs: number,
+		feeOverrides: Pick<
+			providers.TransactionRequest,
+			"maxFeePerGas" | "maxPriorityFeePerGas"
+		>,
+	): Promise<string> {
+		const trySend = async () => {
+			return send({ nonce: nextNonceRef.value, ...feeOverrides });
+		};
+
+		try {
+			const tx = await trySend();
+			nextNonceRef.value += 1;
+			if (waitConfs > 0) {
+				const receipt = await tx.wait(waitConfs);
+				return receipt.transactionHash;
+			}
+			return tx.hash;
+		} catch (e) {
+			const msg = (e as Error).message || "";
+			const code = (e as { code?: number } | undefined)?.code;
+			const isReplaceErr =
+				code === -32000 ||
+				msg.includes("replace") ||
+				msg.includes("replacement") ||
+				msg.toLowerCase().includes("nonce");
+			if (!isReplaceErr) throw e;
+
+			// Refresh nonce and retry once
+			nextNonceRef.value = await this.getPendingNonce();
+			const tx = await trySend();
+			nextNonceRef.value += 1;
+			if (waitConfs > 0) {
+				const receipt = await tx.wait(waitConfs);
+				return receipt.transactionHash;
+			}
+			return tx.hash;
+		}
+	}
+
 	static rationale(): string {
 		const a = POLYGON_ADDRESSES;
 		return [
@@ -137,16 +239,37 @@ export class PolymarketApprovals {
 		}
 	}
 
-	/** Execute approvals. By default approves all required allowances with MaxUint256 */
+	/** Execute approvals. By default approves all required allowances with MaxUint256.
+	 * Use waitForConfirmations=0 (default) to return immediately after broadcasting txs.
+	 */
 	async approveAll(opts?: {
 		approveUsdcForCTF?: boolean;
 		approveUsdcForExchange?: boolean;
 		approveCtfForExchange?: boolean;
-	}): Promise<{ txHashes: string[]; message: string }> {
+		waitForConfirmations?: number; // 0 to just return tx hashes without waiting
+		minPriorityFeeGwei?: number; // optional floor override
+		force?: boolean; // if true, send txs even if already approved
+	}): Promise<{
+		txHashes: string[];
+		message: string;
+		waitedConfirmations: number;
+	}> {
 		const { USDC_ADDRESS, CTF_ADDRESS, EXCHANGE_ADDRESS } = POLYGON_ADDRESSES;
 
 		const usdc = new Contract(USDC_ADDRESS, USDC_ABI, this.signer);
 		const ctf = new Contract(CTF_ADDRESS, CTF_ABI, this.signer);
+
+		// Determine which approvals are missing to avoid redundant transactions
+		const current = await this.check();
+		const missingUsdcForCTF = current.missing.includes(
+			"USDC_ALLOWANCE_FOR_CTF",
+		);
+		const missingUsdcForExchange = current.missing.includes(
+			"USDC_ALLOWANCE_FOR_EXCHANGE",
+		);
+		const missingCtfForExchange = current.missing.includes(
+			"CTF_APPROVAL_FOR_EXCHANGE",
+		);
 
 		const selections = {
 			approveUsdcForCTF: opts?.approveUsdcForCTF ?? true,
@@ -155,29 +278,61 @@ export class PolymarketApprovals {
 		};
 
 		const txHashes: string[] = [];
+		const waitConfs = Math.max(0, opts?.waitForConfirmations ?? 0);
+		const feeOverrides = await this.buildFeeOverrides(opts?.minPriorityFeeGwei);
+		const nextNonceRef = { value: await this.getPendingNonce() };
 
-		if (selections.approveUsdcForCTF) {
-			const tx = await usdc.approve(CTF_ADDRESS, constants.MaxUint256);
-			const receipt = await tx.wait();
-			txHashes.push(receipt.transactionHash);
+		let actions = 0;
+		if (selections.approveUsdcForCTF && (opts?.force || missingUsdcForCTF)) {
+			const h = await this.sendWithNonceAndRetry(
+				(overrides) =>
+					usdc.approve(CTF_ADDRESS, constants.MaxUint256, overrides),
+				nextNonceRef,
+				waitConfs,
+				feeOverrides,
+			);
+			txHashes.push(h);
+			actions++;
 		}
 
-		if (selections.approveUsdcForExchange) {
-			const tx = await usdc.approve(EXCHANGE_ADDRESS, constants.MaxUint256);
-			const receipt = await tx.wait();
-			txHashes.push(receipt.transactionHash);
+		if (
+			selections.approveUsdcForExchange &&
+			(opts?.force || missingUsdcForExchange)
+		) {
+			const h = await this.sendWithNonceAndRetry(
+				(overrides) =>
+					usdc.approve(EXCHANGE_ADDRESS, constants.MaxUint256, overrides),
+				nextNonceRef,
+				waitConfs,
+				feeOverrides,
+			);
+			txHashes.push(h);
+			actions++;
 		}
 
-		if (selections.approveCtfForExchange) {
-			const tx = await ctf.setApprovalForAll(EXCHANGE_ADDRESS, true);
-			const receipt = await tx.wait();
-			txHashes.push(receipt.transactionHash);
+		if (
+			selections.approveCtfForExchange &&
+			(opts?.force || missingCtfForExchange)
+		) {
+			const h = await this.sendWithNonceAndRetry(
+				(overrides) => ctf.setApprovalForAll(EXCHANGE_ADDRESS, true, overrides),
+				nextNonceRef,
+				waitConfs,
+				feeOverrides,
+			);
+			txHashes.push(h);
+			actions++;
 		}
 
 		return {
 			txHashes,
 			message:
-				"Approvals completed. You can revoke or adjust allowances at any time using your wallet.",
+				actions === 0
+					? "No transactions needed; required approvals are already in place."
+					: waitConfs > 0
+						? `Approvals confirmed with ${waitConfs} confirmation(s). You can revoke or adjust allowances at any time using your wallet.`
+						: "Approval transactions submitted. You can monitor them in your wallet and revoke at any time.",
+			waitedConfirmations: waitConfs,
 		};
 	}
 }
