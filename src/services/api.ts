@@ -1,49 +1,27 @@
 import { GammaSDK, PolymarketSDK } from "@hk/polymarket";
 import type { OrderBookSummary } from "@polymarket/clob-client";
+import { type BaseConfig, getConfig } from "./config.js";
 
-export interface PolymarketApiConfig {
-	privateKey?: string;
-	funderAddress?: string;
-	host?: string;
-	chainId?: number;
-	signatureType?: number;
-}
+export type PolymarketApiConfig = Partial<BaseConfig>;
 
 export class PolymarketAPI {
 	private gamma: GammaSDK;
 	private clobSdk: PolymarketSDK | null = null;
-	private readonly cfg: Required<
-		Pick<PolymarketApiConfig, "host" | "chainId" | "signatureType">
-	> &
-		Pick<PolymarketApiConfig, "privateKey" | "funderAddress">;
+	private readonly cfg: BaseConfig;
 
 	constructor(config: PolymarketApiConfig = {}) {
-		// Defaults from env with fallbacks
-		const privateKey =
-			config.privateKey ??
-			process.env.POLYMARKET_KEY ??
-			process.env.POLYMARKET_PRIVATE_KEY;
-		const funderAddress = config.funderAddress ?? process.env.POLYMARKET_FUNDER;
-		const host =
-			config.host ?? process.env.CLOB_API_BASE ?? "https://clob.polymarket.com";
-		const chainId =
-			config.chainId ??
-			(process.env.CHAIN_ID ? Number(process.env.CHAIN_ID) : 137);
-		const signatureType =
-			config.signatureType ??
-			(process.env.SIGNATURE_TYPE ? Number(process.env.SIGNATURE_TYPE) : 1);
-
-		this.cfg = { privateKey, funderAddress, host, chainId, signatureType };
+		// Load centralized config with optional overrides
+		this.cfg = getConfig(config);
 		this.gamma = new GammaSDK();
 
 		// Eagerly initialize CLOB SDK if creds exist
-		if (privateKey && funderAddress) {
+		if (this.cfg.privateKey && this.cfg.funderAddress) {
 			this.clobSdk = new PolymarketSDK({
-				privateKey,
-				funderAddress,
-				host,
-				chainId,
-				signatureType,
+				privateKey: this.cfg.privateKey,
+				funderAddress: this.cfg.funderAddress,
+				host: this.cfg.host,
+				chainId: this.cfg.chainId,
+				signatureType: this.cfg.signatureType,
 			});
 		}
 	}

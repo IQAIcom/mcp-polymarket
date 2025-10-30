@@ -6,11 +6,7 @@ import type {
 } from "@polymarket/clob-client";
 import { ClobClient, OrderType, Side } from "@polymarket/clob-client";
 import { Contract, constants, providers, Wallet } from "ethers";
-
-// Polygon mainnet addresses
-const USDC_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
-const CTF_ADDRESS = "0x4D97DCd97eC945f40cF65F87097ACe5EA0476045"; // Conditional Tokens Framework
-const EXCHANGE_ADDRESS = "0x4bFb41d5B3570DeFd03C39a9A4D8dE6Bd8B8982E"; // Polymarket Exchange
+import { getConfig, POLYGON_ADDRESSES } from "./config.js";
 
 // Minimal ABIs needed for approvals
 const USDC_ABI = [
@@ -32,6 +28,7 @@ export interface TradingConfig {
 	funderAddress?: string;
 	signatureType?: number;
 	rpcUrl?: string;
+	host?: string;
 }
 
 /**
@@ -57,34 +54,32 @@ export class PolymarketTrading {
 	async initialize(): Promise<void> {
 		// Avoid re-initializing if already initialized
 		if (this.client) return;
+		// Resolve merged configuration
+		const cfg = getConfig(this.config);
 		// Use a provider-backed signer so we can submit on-chain approvals
-		const rpcUrl =
-			this.config.rpcUrl ||
-			process.env.POLYMARKET_RPC_URL ||
-			"https://polygon-rpc.com";
-		const provider = new providers.JsonRpcProvider(rpcUrl);
+		const provider = new providers.JsonRpcProvider(cfg.rpcUrl);
 		const ethersSigner = new Wallet(this.config.privateKey, provider);
 		this.signer = ethersSigner;
-		const host = "https://clob.polymarket.com";
+		const host = cfg.host;
 
 		// Create API credentials first
 		const creds = await new ClobClient(
 			host,
-			this.config.chainId || 137,
+			cfg.chainId || 137,
 			ethersSigner,
 			undefined,
-			this.config.signatureType,
-			this.config.funderAddress,
+			cfg.signatureType,
+			cfg.funderAddress,
 		).createOrDeriveApiKey();
 
 		// Create client with credentials
 		this.client = new ClobClient(
 			host,
-			this.config.chainId || 137,
+			cfg.chainId || 137,
 			ethersSigner,
 			creds,
-			this.config.signatureType,
-			this.config.funderAddress,
+			cfg.signatureType,
+			cfg.funderAddress,
 		);
 	}
 
@@ -126,6 +121,7 @@ export class PolymarketTrading {
 	 * - CTF setApprovalForAll for Exchange
 	 */
 	private async ensureAllowances(signer: Wallet): Promise<void> {
+		const { USDC_ADDRESS, CTF_ADDRESS, EXCHANGE_ADDRESS } = POLYGON_ADDRESSES;
 		const usdc = new Contract(USDC_ADDRESS, USDC_ABI, signer);
 		const ctf = new Contract(CTF_ADDRESS, CTF_ABI, signer);
 
@@ -304,14 +300,21 @@ let tradingInstance: PolymarketTrading | null = null;
  */
 export function getTradingInstance(): PolymarketTrading {
 	if (!tradingInstance) {
-		const privateKey = process.env.POLYMARKET_PRIVATE_KEY;
-		if (!privateKey) {
+		const cfg = getConfig();
+		if (!cfg.privateKey) {
 			throw new Error(
 				"POLYMARKET_PRIVATE_KEY environment variable is required for trading operations",
 			);
 		}
 
-		tradingInstance = new PolymarketTrading({ privateKey });
+		tradingInstance = new PolymarketTrading({
+			privateKey: cfg.privateKey,
+			chainId: cfg.chainId,
+			signatureType: cfg.signatureType,
+			funderAddress: cfg.funderAddress,
+			rpcUrl: cfg.rpcUrl,
+			host: cfg.host,
+		});
 	}
 	return tradingInstance;
 }
