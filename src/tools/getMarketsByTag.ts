@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getMarketsByTag } from "../services/markets.js";
+import { api } from "../services/api.js";
 
 export const GetMarketsByTagSchema = z.object({
 	tag_id: z.string().describe("The tag ID to filter by"),
@@ -18,6 +18,6 @@ export const GetMarketsByTagSchema = z.object({
 export async function handleGetMarketsByTag(
 	args: z.infer<typeof GetMarketsByTagSchema>,
 ) {
-	const data = await getMarketsByTag(args.tag_id, args.limit, args.closed);
+	const data = await api.getMarketsByTag(args.tag_id, args.limit, args.closed);
 	return JSON.stringify(data, null, 2);
 }

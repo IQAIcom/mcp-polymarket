@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getMarketBySlug } from "../services/markets.js";
+import { api } from "../services/api.js";
 
 export const GetMarketBySlugSchema = z.object({
 	slug: z
@@ -10,6 +10,6 @@ export const GetMarketBySlugSchema = z.object({
 export async function handleGetMarketBySlug(
 	args: z.infer<typeof GetMarketBySlugSchema>,
 ) {
-	const data = await getMarketBySlug(args.slug);
+	const data = await api.getMarketBySlug(args.slug);
 	return JSON.stringify(data, null, 2);
 }

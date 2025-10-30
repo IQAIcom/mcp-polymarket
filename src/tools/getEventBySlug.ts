@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getEventBySlug } from "../services/markets.js";
+import { api } from "../services/api.js";
 
 export const GetEventBySlugSchema = z.object({
 	slug: z.string().describe("The event slug identifier"),
@@ -8,6 +8,6 @@ export const GetEventBySlugSchema = z.object({
 export async function handleGetEventBySlug(
 	args: z.infer<typeof GetEventBySlugSchema>,
 ) {
-	const data = await getEventBySlug(args.slug);
+	const data = await api.getEventBySlug(args.slug);
 	return JSON.stringify(data, null, 2);
 }

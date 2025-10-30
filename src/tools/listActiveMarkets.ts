@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { listActiveMarkets } from "../services/markets.js";
+import { api } from "../services/api.js";
 
 export const ListActiveMarketsSchema = z.object({
 	limit: z
@@ -17,6 +17,6 @@ export const ListActiveMarketsSchema = z.object({
 export async function handleListActiveMarkets(
 	args: z.infer<typeof ListActiveMarketsSchema>,
 ) {
-	const data = await listActiveMarkets(args.limit, args.offset);
+	const data = await api.listActiveMarkets(args.limit, args.offset);
 	return JSON.stringify(data, null, 2);
 }
