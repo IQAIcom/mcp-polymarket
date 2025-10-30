@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getTradingInstance, initializeTrading } from "../services/trading.js";
+import { tradeApi } from "../services/trading.js";
 
 export const GetTradeHistorySchema = z.object({
 	market: z
@@ -15,14 +15,11 @@ export const GetTradeHistorySchema = z.object({
 export async function handleGetTradeHistory(
 	args: z.infer<typeof GetTradeHistorySchema>,
 ) {
-	const trading = getTradingInstance();
-	await initializeTrading();
-
 	const params: Record<string, string> = {};
 	if (args.market) params.market = args.market;
 	if (args.maker_address) params.maker_address = args.maker_address;
 
-	const result = await trading.getTradeHistory(
+	const result = await tradeApi.getTradeHistory(
 		Object.keys(params).length > 0 ? params : undefined,
 	);
 	return JSON.stringify(result, null, 2);

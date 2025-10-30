@@ -1,6 +1,6 @@
 import { AssetType } from "@polymarket/clob-client";
 import { z } from "zod";
-import { getTradingInstance, initializeTrading } from "../services/trading.js";
+import { tradeApi } from "../services/trading.js";
 
 export const GetBalanceAllowanceSchema = z.object({
 	assetType: z
@@ -15,14 +15,11 @@ export const GetBalanceAllowanceSchema = z.object({
 export async function handleGetBalanceAllowance(
 	args: z.infer<typeof GetBalanceAllowanceSchema>,
 ) {
-	const trading = getTradingInstance();
-	await initializeTrading();
-
 	const params: { asset_type: AssetType; token_id?: string } = {
 		asset_type: AssetType[args.assetType],
 	};
 	if (args.tokenID) params.token_id = args.tokenID;
 
-	const result = await trading.getBalanceAllowance(params);
+	const result = await tradeApi.getBalanceAllowance(params);
 	return JSON.stringify(result, null, 2);
 }

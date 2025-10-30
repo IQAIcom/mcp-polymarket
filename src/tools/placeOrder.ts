@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getTradingInstance, initializeTrading } from "../services/trading.js";
+import { tradeApi } from "../services/trading.js";
 
 export const PlaceOrderSchema = z.object({
 	tokenId: z.string().describe("The token ID of the market outcome to trade"),
@@ -22,10 +22,7 @@ export const PlaceOrderSchema = z.object({
 });
 
 export async function handlePlaceOrder(args: z.infer<typeof PlaceOrderSchema>) {
-	const trading = getTradingInstance();
-	await initializeTrading();
-
-	const result = await trading.placeOrder({
+	const result = await tradeApi.placeOrder({
 		tokenId: args.tokenId,
 		price: args.price,
 		size: args.size,

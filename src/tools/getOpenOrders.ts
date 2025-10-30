@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getTradingInstance, initializeTrading } from "../services/trading.js";
+import { tradeApi } from "../services/trading.js";
 
 export const GetOpenOrdersSchema = z.object({
 	market: z
@@ -11,10 +11,7 @@ export const GetOpenOrdersSchema = z.object({
 export async function handleGetOpenOrders(
 	args: z.infer<typeof GetOpenOrdersSchema>,
 ) {
-	const trading = getTradingInstance();
-	await initializeTrading();
-
-	const result = await trading.getOpenOrders(
+	const result = await tradeApi.getOpenOrders(
 		args.market ? { market: args.market } : undefined,
 	);
 	return JSON.stringify(result, null, 2);
