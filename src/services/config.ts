@@ -1,21 +1,12 @@
-// Centralized configuration for Polymarket services (market data + trading)
-// Reads environment variables with sensible defaults and allows per-call overrides.
-
 export type BaseConfig = {
-	// CLOB API base URL
 	host: string;
-	// EVM chain id (Polygon mainnet default)
 	chainId: number;
-	// Signature type for CLOB auth (0 = EOA)
 	signatureType: number;
-	// RPC endpoint used for on-chain approvals/transactions
 	rpcUrl: string;
-	// Optional creds for authenticated calls
 	privateKey?: string;
 	funderAddress?: string;
 };
 
-// Polygon mainnet addresses
 export const POLYGON_ADDRESSES = {
 	USDC_ADDRESS: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
 	CTF_ADDRESS: "0x4D97DCd97eC945f40cF65F87097ACe5EA0476045", // Conditional Tokens Framework
