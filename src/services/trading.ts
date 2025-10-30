@@ -5,7 +5,23 @@ import type {
 	UserOrder,
 } from "@polymarket/clob-client";
 import { ClobClient, OrderType, Side } from "@polymarket/clob-client";
-import { Wallet } from "ethers";
+import { Contract, Wallet, constants, providers } from "ethers";
+
+// Polygon mainnet addresses
+const USDC_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
+const CTF_ADDRESS = "0x4D97DCd97eC945f40cF65F87097ACe5EA0476045"; // Conditional Tokens Framework
+const EXCHANGE_ADDRESS = "0x4bFb41d5B3570DeFd03C39a9A4D8dE6Bd8B8982E"; // Polymarket Exchange
+
+// Minimal ABIs needed for approvals
+const USDC_ABI = [
+	"function allowance(address owner, address spender) view returns (uint256)",
+	"function approve(address spender, uint256 amount) returns (bool)",
+];
+
+const CTF_ABI = [
+	"function isApprovedForAll(address owner, address operator) view returns (bool)",
+	"function setApprovalForAll(address operator, bool approved)",
+];
 
 /**
  * Interface for trading configuration
@@ -15,6 +31,7 @@ export interface TradingConfig {
 	chainId?: number;
 	funderAddress?: string;
 	signatureType?: number;
+	rpcUrl?: string;
 }
 
 /**
@@ -36,7 +53,10 @@ export class PolymarketTrading {
 	 * Initialize the CLOB client with credentials
 	 */
 	async initialize(): Promise<void> {
-		const ethersSigner = new Wallet(this.config.privateKey);
+		// Use a provider-backed signer so we can submit on-chain approvals
+		const rpcUrl = this.config.rpcUrl || process.env.POLYMARKET_RPC_URL || "https://polygon-rpc.com";
+		const provider = new providers.JsonRpcProvider(rpcUrl);
+		const ethersSigner = new Wallet(this.config.privateKey, provider);
 		const host = "https://clob.polymarket.com";
 
 		// Create API credentials first
@@ -51,6 +71,9 @@ export class PolymarketTrading {
 
 		const creds = await tempClient.createOrDeriveApiKey();
 
+		// Ensure necessary approvals are in place before trading
+		await this.ensureAllowances(ethersSigner);
+
 		// Create client with credentials
 		this.client = new ClobClient(
 			host,
@@ -60,6 +83,41 @@ export class PolymarketTrading {
 			this.config.signatureType,
 			this.config.funderAddress,
 		);
+	}
+
+	/**
+	 * Ensure USDC and Conditional Tokens approvals are set for the Exchange
+	 * - USDC allowance for CTF and Exchange (MaxUint256 if zero)
+	 * - CTF setApprovalForAll for Exchange
+	 */
+	private async ensureAllowances(signer: Wallet): Promise<void> {
+		const usdc = new Contract(USDC_ADDRESS, USDC_ABI, signer);
+		const ctf = new Contract(CTF_ADDRESS, CTF_ABI, signer);
+
+		// Check current allowances/approvals
+		const [usdcAllowanceCtf, usdcAllowanceExchange, ctfApprovedForExchange] = await Promise.all([
+			usdc.allowance(signer.address, CTF_ADDRESS),
+			usdc.allowance(signer.address, EXCHANGE_ADDRESS),
+			ctf.isApprovedForAll(signer.address, EXCHANGE_ADDRESS),
+		]);
+
+		// Approve USDC for CTF if needed
+		if (usdcAllowanceCtf.isZero()) {
+			const tx = await usdc.approve(CTF_ADDRESS, constants.MaxUint256);
+			await tx.wait();
+		}
+
+		// Approve USDC for Exchange if needed
+		if (usdcAllowanceExchange.isZero()) {
+			const tx = await usdc.approve(EXCHANGE_ADDRESS, constants.MaxUint256);
+			await tx.wait();
+		}
+
+		// Approve CTF for Exchange if needed
+		if (!ctfApprovedForExchange) {
+			const tx = await ctf.setApprovalForAll(EXCHANGE_ADDRESS, true);
+			await tx.wait();
+		}
 	}
 
 	/**
