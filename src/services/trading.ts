@@ -5,19 +5,12 @@ import type {
 	UserOrder,
 } from "@polymarket/clob-client";
 import { ClobClient, OrderType, Side } from "@polymarket/clob-client";
-import { Contract, constants, providers, Wallet } from "ethers";
-import { getConfig, POLYGON_ADDRESSES } from "./config.js";
+import { providers, Wallet } from "ethers";
+import { PolymarketApprovals } from "./approvals.js";
+import { getConfig } from "./config.js";
 
 // Minimal ABIs needed for approvals
-const USDC_ABI = [
-	"function allowance(address owner, address spender) view returns (uint256)",
-	"function approve(address spender, uint256 amount) returns (bool)",
-];
-
-const CTF_ABI = [
-	"function isApprovedForAll(address owner, address operator) view returns (bool)",
-	"function setApprovalForAll(address operator, bool approved)",
-];
+// ABIs moved to approvals service; nothing needed here.
 
 /**
  * Interface for trading configuration
@@ -113,36 +106,11 @@ export class PolymarketTrading {
 	}
 
 	/**
-	 * Ensure USDC and Conditional Tokens approvals are set for the Exchange
-	 * - USDC allowance for CTF and Exchange (MaxUint256 if zero)
-	 * - CTF setApprovalForAll for Exchange
+	 * Throw a structured error if approvals are missing.
 	 */
-	private async ensureAllowances(signer: Wallet): Promise<void> {
-		const { USDC_ADDRESS, CTF_ADDRESS, EXCHANGE_ADDRESS } = POLYGON_ADDRESSES;
-		const usdc = new Contract(USDC_ADDRESS, USDC_ABI, signer);
-		const ctf = new Contract(CTF_ADDRESS, CTF_ABI, signer);
-
-		const [usdcAllowanceCtf, usdcAllowanceExchange, ctfApprovedForExchange] =
-			await Promise.all([
-				usdc.allowance(signer.address, CTF_ADDRESS),
-				usdc.allowance(signer.address, EXCHANGE_ADDRESS),
-				ctf.isApprovedForAll(signer.address, EXCHANGE_ADDRESS),
-			]);
-
-		if (usdcAllowanceCtf.isZero()) {
-			const tx = await usdc.approve(CTF_ADDRESS, constants.MaxUint256);
-			await tx.wait();
-		}
-
-		if (usdcAllowanceExchange.isZero()) {
-			const tx = await usdc.approve(EXCHANGE_ADDRESS, constants.MaxUint256);
-			await tx.wait();
-		}
-
-		if (!ctfApprovedForExchange) {
-			const tx = await ctf.setApprovalForAll(EXCHANGE_ADDRESS, true);
-			await tx.wait();
-		}
+	private async assertApprovals(): Promise<void> {
+		const approvals = new PolymarketApprovals(this.getSigner());
+		await approvals.assertApproved();
 	}
 
 	/**
@@ -156,7 +124,7 @@ export class PolymarketTrading {
 		orderType?: "GTC" | "GTD";
 	}): Promise<unknown> {
 		await this.ensureInitialized();
-		await this.ensureAllowances(this.getSigner());
+		await this.assertApprovals();
 
 		const side: Side = args.side === "BUY" ? Side.BUY : Side.SELL;
 
@@ -192,7 +160,7 @@ export class PolymarketTrading {
 		orderType?: "FOK" | "FAK";
 	}): Promise<unknown> {
 		await this.ensureInitialized();
-		await this.ensureAllowances(this.getSigner());
+		await this.assertApprovals();
 
 		const side: Side = args.side === "BUY" ? Side.BUY : Side.SELL;
 
@@ -240,6 +208,7 @@ export class PolymarketTrading {
 	 */
 	async cancelOrder(orderId: string): Promise<unknown> {
 		await this.ensureInitialized();
+		await this.assertApprovals();
 		const client = this.getClient();
 		return client.cancelOrder({ orderID: orderId });
 	}
@@ -249,6 +218,7 @@ export class PolymarketTrading {
 	 */
 	async cancelAllOrders(): Promise<unknown> {
 		await this.ensureInitialized();
+		await this.assertApprovals();
 		const client = this.getClient();
 		return client.cancelAll();
 	}
@@ -267,6 +237,7 @@ export class PolymarketTrading {
 	 */
 	async getBalanceAllowance(params?: BalanceAllowanceParams): Promise<unknown> {
 		await this.ensureInitialized();
+		await this.assertApprovals();
 		const client = this.getClient();
 		return client.getBalanceAllowance(params);
 	}
@@ -276,6 +247,7 @@ export class PolymarketTrading {
 	 */
 	async updateBalanceAllowance(params?: BalanceAllowanceParams): Promise<void> {
 		await this.ensureInitialized();
+		await this.assertApprovals();
 		const client = this.getClient();
 		return client.updateBalanceAllowance(params);
 	}

@@ -1,3 +1,4 @@
+export { approveAllowancesTool } from "./approve-allowances.js";
 export { cancelAllOrdersTool } from "./cancel-all-orders.js";
 export { cancelOrderTool } from "./cancel-order.js";
 export { getAllTagsTool } from "./get-all-tags.js";
