@@ -41,8 +41,8 @@ The easiest way to use this MCP server is with `npx`, which runs the package dir
 {
   "mcpServers": {
     "polymarket": {
-      "command": "npx",
-      "args": ["-y", "@iqai/mcp-polymarket"]
+      "command": "pnpx",
+      "args": ["@iqai/mcp-polymarket"]
     }
   }
 }
@@ -53,8 +53,8 @@ The easiest way to use this MCP server is with `npx`, which runs the package dir
 {
   "mcpServers": {
     "polymarket": {
-      "command": "npx",
-      "args": ["-y", "@iqai/mcp-polymarket"],
+      "command": "pnpx",
+      "args": ["@iqai/mcp-polymarket"],
       "env": {
         "POLYMARKET_PRIVATE_KEY": "your_private_key_here"
       }
@@ -69,8 +69,8 @@ Optionally, you can configure a custom Polygon RPC endpoint (recommended for rel
 {
    "mcpServers": {
       "polymarket": {
-         "command": "npx",
-         "args": ["-y", "@iqai/mcp-polymarket"],
+         "command": "pnpx",
+         "args": ["@iqai/mcp-polymarket"],
          "env": {
             "POLYMARKET_PRIVATE_KEY": "your_private_key_here",
             "POLYMARKET_RPC_URL": "https://polygon-mainnet.g.alchemy.com/v2/<YOUR_KEY>"
