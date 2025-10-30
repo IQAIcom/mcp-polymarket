@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.8
+
+### Patch Changes
+
+- 74ac0ff: Changes negRisk to true for https://github.com/Polymarket/py-clob-client/issues/138
+
 ## 0.0.7
 
 ### Patch Changes
