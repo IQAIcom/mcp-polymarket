@@ -33,6 +33,13 @@ export class MarketResolverService {
 		// Fetch market details from Gamma API
 		console.log(`Fetching market details for: ${marketSlug}`);
 		const response = await fetch(`${GAMMA_API_URL}/markets?slug=${marketSlug}`);
+
+		if (!response.ok) {
+			throw new Error(
+				`Failed to fetch market details for '${marketSlug}': HTTP ${response.status} ${response.statusText}`,
+			);
+		}
+
 		const markets = await response.json();
 
 		if (!markets || markets.length === 0) {
@@ -40,7 +47,16 @@ export class MarketResolverService {
 		}
 
 		const market = markets[0];
-		const tokenIds = JSON.parse(market.clobTokenIds);
+
+		let tokenIds: string[];
+		try {
+			tokenIds = JSON.parse(market.clobTokenIds);
+		} catch (e) {
+			throw new Error(
+				`Failed to parse clobTokenIds for market '${marketSlug}': ${market.clobTokenIds}. Error: ${e instanceof Error ? e.message : e}`,
+			);
+		}
+
 		const resolvedTokenId = outcome === "YES" ? tokenIds[0] : tokenIds[1];
 		const resolvedTickSize = market.orderPriceMinTickSize.toString();
 

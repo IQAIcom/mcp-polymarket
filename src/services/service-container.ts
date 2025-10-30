@@ -65,9 +65,8 @@ class ServiceContainer {
 		const provider = new providers.JsonRpcProvider(rpcUrl);
 		const signer = new Wallet(privateKey, provider);
 
-		// Initialize allowance service and set allowances
+		// Initialize allowance service
 		this.allowanceService = new AllowanceService(signer);
-		await this.allowanceService.setAllowances();
 
 		// Create authenticated CLOB client
 		const tempClient = new ClobClient(
