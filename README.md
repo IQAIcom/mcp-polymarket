@@ -291,20 +291,27 @@ mcp-polymarket/
 ├── src/
 │   ├── services/          # Service layer
 │   │   ├── api.ts         # Gamma API client
-│   │   ├── markets.ts     # Market data services
-│   │   ├── orderbook.ts   # Order book services
+│   │   ├── config.ts      # Configuration management
 │   │   └── trading.ts     # Trading client (CLOB)
 │   ├── tools/             # MCP tool implementations
-│   │   ├── get*.ts        # Read-only market data tools
-│   │   ├── place*.ts      # Order placement tools (requires key)
-│   │   ├── cancel*.ts     # Order cancellation tools (requires key)
-│   │   └── update*.ts     # Account management tools (requires key)
+│   │   ├── cancel-all-orders.ts
+│   │   ├── cancel-order.ts
+│   │   ├── get-all-tags.ts
+│   │   ├── get-balance-allowance.ts
+│   │   └── ...            # Additional tool files
 │   ├── index.ts           # Main MCP server
 │   └── trading.ts         # Trading utilities
-├── build/                 # Compiled JavaScript output
+├── dist/                  # Compiled JavaScript output
+├── .changeset/            # Changeset configuration
+├── .github/               # GitHub Actions and templates
+├── node_modules/          # Dependencies
+├── .env.example           # Environment variables template
+├── biome.json             # Biome configuration
 ├── package.json           # Project dependencies and scripts
+├── package-lock.json      # Lockfile
+├── pnpm-lock.yaml         # pnpm lockfile
 ├── tsconfig.json          # TypeScript configuration
-└── biome.json             # Biome configuration
+└── README.md              # This file
 ```
 
 ## 🔧 Technologies
