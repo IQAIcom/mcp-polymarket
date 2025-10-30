@@ -41,7 +41,16 @@ export class MarketResolverService {
 		}
 
 		const market = markets[0];
-		const tokenIds = JSON.parse(market.clobTokenIds);
+
+		let tokenIds: string[];
+		try {
+			tokenIds = JSON.parse(market.clobTokenIds);
+		} catch (e) {
+			throw new Error(
+				`Failed to parse clobTokenIds for market '${marketSlug}': ${market.clobTokenIds}. Error: ${e instanceof Error ? e.message : e}`,
+			);
+		}
+
 		const resolvedTokenId = outcome === "YES" ? tokenIds[0] : tokenIds[1];
 		const resolvedTickSize = market.orderPriceMinTickSize.toString();
 
