@@ -316,27 +316,18 @@ export function getTradingInstance(): PolymarketTrading {
 	return tradingInstance;
 }
 
-// Simple facade for easy consumption: tradeApi.getOrder(...)
-export const tradeApi = {
-	placeOrder: (args: Parameters<PolymarketTrading["placeOrder"]>[0]) =>
-		getTradingInstance().placeOrder(args),
-	placeMarketOrder: (
-		args: Parameters<PolymarketTrading["placeMarketOrder"]>[0],
-	) => getTradingInstance().placeMarketOrder(args),
-	getOpenOrders: (params?: Parameters<PolymarketTrading["getOpenOrders"]>[0]) =>
-		getTradingInstance().getOpenOrders(params),
-	getOrder: (orderId: Parameters<PolymarketTrading["getOrder"]>[0]) =>
-		getTradingInstance().getOrder(orderId),
-	cancelOrder: (orderId: Parameters<PolymarketTrading["cancelOrder"]>[0]) =>
-		getTradingInstance().cancelOrder(orderId),
-	cancelAllOrders: () => getTradingInstance().cancelAllOrders(),
-	getTradeHistory: (
-		params?: Parameters<PolymarketTrading["getTradeHistory"]>[0],
-	) => getTradingInstance().getTradeHistory(params),
-	getBalanceAllowance: (
-		params?: Parameters<PolymarketTrading["getBalanceAllowance"]>[0],
-	) => getTradingInstance().getBalanceAllowance(params),
-	updateBalanceAllowance: (
-		params?: Parameters<PolymarketTrading["updateBalanceAllowance"]>[0],
-	) => getTradingInstance().updateBalanceAllowance(params),
-};
+// Lazy proxy facade for easy consumption without triggering env checks at import time
+// Usage: await tradeApi.getOrder("...")
+export const tradeApi: PolymarketTrading = new Proxy({} as PolymarketTrading, {
+	get(_target, prop, _receiver) {
+		const instance = getTradingInstance() as unknown as Record<
+			string | symbol,
+			unknown
+		>;
+		const value = instance[prop as keyof PolymarketTrading] as unknown;
+		if (typeof value === "function") {
+			return value.bind(instance);
+		}
+		return value;
+	},
+});
