@@ -5,7 +5,7 @@ import type {
 	UserOrder,
 } from "@polymarket/clob-client";
 import { ClobClient, OrderType, Side } from "@polymarket/clob-client";
-import { Contract, Wallet, constants, providers } from "ethers";
+import { Contract, constants, providers, Wallet } from "ethers";
 
 // Polygon mainnet addresses
 const USDC_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
@@ -54,22 +54,23 @@ export class PolymarketTrading {
 	 */
 	async initialize(): Promise<void> {
 		// Use a provider-backed signer so we can submit on-chain approvals
-		const rpcUrl = this.config.rpcUrl || process.env.POLYMARKET_RPC_URL || "https://polygon-rpc.com";
+		const rpcUrl =
+			this.config.rpcUrl ||
+			process.env.POLYMARKET_RPC_URL ||
+			"https://polygon-rpc.com";
 		const provider = new providers.JsonRpcProvider(rpcUrl);
 		const ethersSigner = new Wallet(this.config.privateKey, provider);
 		const host = "https://clob.polymarket.com";
 
 		// Create API credentials first
-		const tempClient = new ClobClient(
+		const creds = await new ClobClient(
 			host,
 			this.config.chainId || 137,
 			ethersSigner,
 			undefined,
 			this.config.signatureType,
 			this.config.funderAddress,
-		);
-
-		const creds = await tempClient.createOrDeriveApiKey();
+		).createOrDeriveApiKey();
 
 		// Ensure necessary approvals are in place before trading
 		await this.ensureAllowances(ethersSigner);
@@ -95,11 +96,12 @@ export class PolymarketTrading {
 		const ctf = new Contract(CTF_ADDRESS, CTF_ABI, signer);
 
 		// Check current allowances/approvals
-		const [usdcAllowanceCtf, usdcAllowanceExchange, ctfApprovedForExchange] = await Promise.all([
-			usdc.allowance(signer.address, CTF_ADDRESS),
-			usdc.allowance(signer.address, EXCHANGE_ADDRESS),
-			ctf.isApprovedForAll(signer.address, EXCHANGE_ADDRESS),
-		]);
+		const [usdcAllowanceCtf, usdcAllowanceExchange, ctfApprovedForExchange] =
+			await Promise.all([
+				usdc.allowance(signer.address, CTF_ADDRESS),
+				usdc.allowance(signer.address, EXCHANGE_ADDRESS),
+				ctf.isApprovedForAll(signer.address, EXCHANGE_ADDRESS),
+			]);
 
 		// Approve USDC for CTF if needed
 		if (usdcAllowanceCtf.isZero()) {
