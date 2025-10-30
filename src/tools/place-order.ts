@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { tradeApi } from "../services/trading.js";
 
-export const PlaceOrderSchema = z.object({
+const placeOrderSchema = z.object({
 	tokenId: z.string().describe("The token ID of the market outcome to trade"),
 	price: z
 		.number()
@@ -21,16 +21,19 @@ export const PlaceOrderSchema = z.object({
 		),
 });
 
-/**
- * Places a limit order on Polymarket.
- */
-export async function handlePlaceOrder(args: z.infer<typeof PlaceOrderSchema>) {
-	const result = await tradeApi.placeOrder({
-		tokenId: args.tokenId,
-		price: args.price,
-		size: args.size,
-		side: args.side,
-		...(args.orderType && { orderType: args.orderType }),
-	});
-	return JSON.stringify(result, null, 2);
-}
+export const placeOrderTool = {
+	name: "place_order",
+	description:
+		"Place a limit order on Polymarket. Places a buy or sell order at a specific price.",
+	parameters: placeOrderSchema,
+	execute: async (args: z.infer<typeof placeOrderSchema>) => {
+		const result = await tradeApi.placeOrder({
+			tokenId: args.tokenId,
+			price: args.price,
+			size: args.size,
+			side: args.side,
+			...(args.orderType && { orderType: args.orderType }),
+		});
+		return JSON.stringify(result, null, 2);
+	},
+};

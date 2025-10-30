@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { tradeApi } from "../services/trading.js";
 
-export const PlaceMarketOrderSchema = z.object({
+const placeMarketOrderSchema = z.object({
 	tokenId: z.string().describe("The token ID of the market outcome to trade"),
 	amount: z
 		.number()
@@ -16,17 +16,18 @@ export const PlaceMarketOrderSchema = z.object({
 		),
 });
 
-/**
- * Places a market order (FOK or FAK) on Polymarket.
- */
-export async function handlePlaceMarketOrder(
-	args: z.infer<typeof PlaceMarketOrderSchema>,
-) {
-	const result = await tradeApi.placeMarketOrder({
-		tokenId: args.tokenId,
-		amount: args.amount,
-		side: args.side,
-		...(args.orderType && { orderType: args.orderType }),
-	});
-	return JSON.stringify(result, null, 2);
-}
+export const placeMarketOrderTool = {
+	name: "place_market_order",
+	description:
+		"Place a market order (FOK or FAK) on Polymarket. Executes immediately at market price.",
+	parameters: placeMarketOrderSchema,
+	execute: async (args: z.infer<typeof placeMarketOrderSchema>) => {
+		const result = await tradeApi.placeMarketOrder({
+			tokenId: args.tokenId,
+			amount: args.amount,
+			side: args.side,
+			...(args.orderType && { orderType: args.orderType }),
+		});
+		return JSON.stringify(result, null, 2);
+	},
+};

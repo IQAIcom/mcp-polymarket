@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { api } from "../services/api.js";
 
-export const ListActiveMarketsSchema = z.object({
+const listActiveMarketsSchema = z.object({
 	limit: z
 		.number()
 		.optional()
@@ -14,12 +14,13 @@ export const ListActiveMarketsSchema = z.object({
 		.describe("Number of markets to skip for pagination (default: 0)"),
 });
 
-/**
- * Lists all currently active markets with pagination.
- */
-export async function handleListActiveMarkets(
-	args: z.infer<typeof ListActiveMarketsSchema>,
-) {
-	const data = await api.listActiveMarkets(args.limit, args.offset);
-	return JSON.stringify(data, null, 2);
-}
+export const listActiveMarketsTool = {
+	name: "list_active_markets",
+	description:
+		"List all currently active markets with pagination. Returns markets that are not yet closed.",
+	parameters: listActiveMarketsSchema,
+	execute: async (args: z.infer<typeof listActiveMarketsSchema>) => {
+		const data = await api.listActiveMarkets(args.limit, args.offset);
+		return JSON.stringify(data, null, 2);
+	},
+};

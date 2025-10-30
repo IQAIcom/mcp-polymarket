@@ -31,9 +31,7 @@ export function getConfig(overrides: Partial<BaseConfig> = {}): BaseConfig {
 		process.env.CLOB_API_BASE ??
 		"https://clob.polymarket.com";
 
-	const chainId = Number(
-		overrides.chainId ?? process.env.CHAIN_ID ?? 137,
-	);
+	const chainId = Number(overrides.chainId ?? process.env.CHAIN_ID ?? 137);
 
 	const signatureType = Number(
 		overrides.signatureType ?? process.env.SIGNATURE_TYPE ?? 0,

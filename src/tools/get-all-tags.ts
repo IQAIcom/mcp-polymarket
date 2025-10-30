@@ -1,12 +1,14 @@
 import { z } from "zod";
 import { api } from "../services/api.js";
 
-export const GetAllTagsSchema = z.object({});
+const getAllTagsSchema = z.object({});
 
-/**
- * Retrieves a list of all available tags for categorizing markets.
- */
-export async function handleGetAllTags() {
-	const data = await api.getAllTags();
-	return JSON.stringify(data, null, 2);
-}
+export const getAllTagsTool = {
+	name: "get_all_tags",
+	description: "Get a list of all available tags for categorizing markets.",
+	parameters: getAllTagsSchema,
+	execute: async () => {
+		const data = await api.getAllTags();
+		return JSON.stringify(data, null, 2);
+	},
+};

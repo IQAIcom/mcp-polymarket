@@ -1,14 +1,14 @@
 import { z } from "zod";
 import { tradeApi } from "../services/trading.js";
 
-export const CancelAllOrdersSchema = z.object({});
+const cancelAllOrdersSchema = z.object({});
 
-/**
- * Cancels all open orders for the authenticated account.
- */
-export async function handleCancelAllOrders(
-	_args: z.infer<typeof CancelAllOrdersSchema>,
-) {
-	const result = await tradeApi.cancelAllOrders();
-	return JSON.stringify(result, null, 2);
-}
+export const cancelAllOrdersTool = {
+	name: "cancel_all_orders",
+	description: "Cancel all open orders for the authenticated account.",
+	parameters: cancelAllOrdersSchema,
+	execute: async (_args: z.infer<typeof cancelAllOrdersSchema>) => {
+		const result = await tradeApi.cancelAllOrders();
+		return JSON.stringify(result, null, 2);
+	},
+};

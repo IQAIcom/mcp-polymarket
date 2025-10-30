@@ -1,18 +1,19 @@
 import { z } from "zod";
 import { api } from "../services/api.js";
 
-export const GetMarketBySlugSchema = z.object({
+const getMarketBySlugSchema = z.object({
 	slug: z
 		.string()
 		.describe("The market slug identifier (e.g., 'will-trump-win-2024')"),
 });
 
-/**
- * Retrieves detailed information about a specific market by its slug.
- */
-export async function handleGetMarketBySlug(
-	args: z.infer<typeof GetMarketBySlugSchema>,
-) {
-	const data = await api.getMarketBySlug(args.slug);
-	return JSON.stringify(data, null, 2);
-}
+export const getMarketBySlugTool = {
+	name: "get_market_by_slug",
+	description:
+		"Get detailed information about a specific market by its slug identifier. The slug can be extracted from the Polymarket URL.",
+	parameters: getMarketBySlugSchema,
+	execute: async (args: z.infer<typeof getMarketBySlugSchema>) => {
+		const data = await api.getMarketBySlug(args.slug);
+		return JSON.stringify(data, null, 2);
+	},
+};

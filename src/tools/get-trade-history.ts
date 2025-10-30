@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { tradeApi } from "../services/trading.js";
 
-export const GetTradeHistorySchema = z.object({
+const getTradeHistorySchema = z.object({
 	market: z
 		.string()
 		.optional()
@@ -12,18 +12,19 @@ export const GetTradeHistorySchema = z.object({
 		.describe("Optional maker address to filter trades by"),
 });
 
-/**
- * Retrieves trade history for the authenticated account.
- */
-export async function handleGetTradeHistory(
-	args: z.infer<typeof GetTradeHistorySchema>,
-) {
-	const params: Record<string, string> = {};
-	if (args.market) params.market = args.market;
-	if (args.maker_address) params.maker_address = args.maker_address;
+export const getTradeHistoryTool = {
+	name: "get_trade_history",
+	description:
+		"Get trade history for the authenticated account. Can optionally filter by market or maker address.",
+	parameters: getTradeHistorySchema,
+	execute: async (args: z.infer<typeof getTradeHistorySchema>) => {
+		const params: Record<string, string> = {};
+		if (args.market) params.market = args.market;
+		if (args.maker_address) params.maker_address = args.maker_address;
 
-	const result = await tradeApi.getTradeHistory(
-		Object.keys(params).length > 0 ? params : undefined,
-	);
-	return JSON.stringify(result, null, 2);
-}
+		const result = await tradeApi.getTradeHistory(
+			Object.keys(params).length > 0 ? params : undefined,
+		);
+		return JSON.stringify(result, null, 2);
+	},
+};
