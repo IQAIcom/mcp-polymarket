@@ -34,8 +34,8 @@ This MCP server is published on npm and can be used directly with `npx` - no ins
 
 ### 📦 Using with npx (Recommended)
 
-The easiest way to use this MCP server is with `npx`, which runs the package directly from npm:
-
+The easiest way to use this MCP server is with `pnpx`, which runs the package directly from npm registry:
+ 
 #### Read-Only Mode (Market Data Only)
 ```json
 {
