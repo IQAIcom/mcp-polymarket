@@ -179,7 +179,7 @@ export class PolymarketTrading {
 			userMarketOrder,
 			{
 				tickSize: "0.001",
-				negRisk: false,
+				negRisk: true,
 			},
 			orderType,
 		);
