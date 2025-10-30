@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.6
+
+### Patch Changes
+
+- 0f0efbc: Improves max gas fee logic in approvals
+
 ## 0.0.5
 
 ### Patch Changes
