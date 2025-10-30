@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ApprovalRequiredError } from "../services/approvals.js";
 import { tradeApi } from "../services/trading.js";
 
 const cancelOrderSchema = z.object({
@@ -10,7 +11,14 @@ export const cancelOrderTool = {
 	description: "Cancel a specific order by its ID.",
 	parameters: cancelOrderSchema,
 	execute: async (args: z.infer<typeof cancelOrderSchema>) => {
-		const result = await tradeApi.cancelOrder(args.orderId);
-		return JSON.stringify(result, null, 2);
+		try {
+			const result = await tradeApi.cancelOrder(args.orderId);
+			return JSON.stringify(result, null, 2);
+		} catch (err) {
+			if (err instanceof ApprovalRequiredError) {
+				return JSON.stringify(err, null, 2);
+			}
+			throw err;
+		}
 	},
 };

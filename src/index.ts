@@ -29,6 +29,7 @@ async function main() {
 
 	// Trading tools - only register if private key is provided
 	if (hasPrivateKey) {
+		server.addTool(tools.approveAllowancesTool);
 		server.addTool(tools.placeOrderTool);
 		server.addTool(tools.placeMarketOrderTool);
 		server.addTool(tools.getOpenOrdersTool);

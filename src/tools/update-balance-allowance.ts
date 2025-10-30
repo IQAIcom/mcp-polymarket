@@ -1,5 +1,6 @@
 import { AssetType } from "@polymarket/clob-client";
 import { z } from "zod";
+import { ApprovalRequiredError } from "../services/approvals.js";
 import { tradeApi } from "../services/trading.js";
 
 const updateBalanceAllowanceSchema = z.object({
@@ -23,11 +24,18 @@ export const updateBalanceAllowanceTool = {
 		};
 		if (args.tokenID) params.token_id = args.tokenID;
 
-		await tradeApi.updateBalanceAllowance(params);
-		return JSON.stringify(
-			{ success: true, message: "Balance allowance updated successfully" },
-			null,
-			2,
-		);
+			try {
+				await tradeApi.updateBalanceAllowance(params);
+				return JSON.stringify(
+					{ success: true, message: "Balance allowance updated successfully" },
+					null,
+					2,
+				);
+			} catch (err) {
+				if (err instanceof ApprovalRequiredError) {
+					return JSON.stringify(err, null, 2);
+				}
+				throw err;
+			}
 	},
 };
