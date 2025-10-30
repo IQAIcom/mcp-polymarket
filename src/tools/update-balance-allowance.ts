@@ -24,18 +24,18 @@ export const updateBalanceAllowanceTool = {
 		};
 		if (args.tokenID) params.token_id = args.tokenID;
 
-			try {
-				await tradeApi.updateBalanceAllowance(params);
-				return JSON.stringify(
-					{ success: true, message: "Balance allowance updated successfully" },
-					null,
-					2,
-				);
-			} catch (err) {
-				if (err instanceof ApprovalRequiredError) {
-					return JSON.stringify(err, null, 2);
-				}
-				throw err;
+		try {
+			await tradeApi.updateBalanceAllowance(params);
+			return JSON.stringify(
+				{ success: true, message: "Balance allowance updated successfully" },
+				null,
+				2,
+			);
+		} catch (err) {
+			if (err instanceof ApprovalRequiredError) {
+				return JSON.stringify(err, null, 2);
 			}
+			throw err;
+		}
 	},
 };
