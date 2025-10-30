@@ -5,6 +5,9 @@ export const GetOrderBookSchema = z.object({
 	token_id: z.string().describe("The token ID for the market outcome"),
 });
 
+/**
+ * Retrieves the current order book for a specific market token.
+ */
 export async function handleGetOrderBook(
 	args: z.infer<typeof GetOrderBookSchema>,
 ) {

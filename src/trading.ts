@@ -78,7 +78,6 @@ export class PolymarketTrading {
 
 		const side: Side = args.side === "BUY" ? Side.BUY : Side.SELL;
 
-		// Validate and convert order type
 		const orderTypeStr = args.orderType || "GTC";
 		const orderType: OrderType.GTC | OrderType.GTD =
 			orderTypeStr === "GTD" ? OrderType.GTD : OrderType.GTC;
@@ -115,7 +114,6 @@ export class PolymarketTrading {
 
 		const side: Side = args.side === "BUY" ? Side.BUY : Side.SELL;
 
-		// Validate and convert order type
 		const orderTypeStr = args.orderType || "FOK";
 		const orderType: OrderType.FOK | OrderType.FAK =
 			orderTypeStr === "FAK" ? OrderType.FAK : OrderType.FOK;

@@ -16,6 +16,9 @@ export const PlaceMarketOrderSchema = z.object({
 		),
 });
 
+/**
+ * Places a market order (FOK or FAK) on Polymarket.
+ */
 export async function handlePlaceMarketOrder(
 	args: z.infer<typeof PlaceMarketOrderSchema>,
 ) {

@@ -5,6 +5,9 @@ export const SearchMarketsSchema = z.object({
 	query: z.string().describe("Search query text"),
 });
 
+/**
+ * Searches for markets, events, and profiles using text search.
+ */
 export async function handleSearchMarkets(
 	args: z.infer<typeof SearchMarketsSchema>,
 ) {

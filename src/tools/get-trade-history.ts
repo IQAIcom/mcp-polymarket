@@ -12,6 +12,9 @@ export const GetTradeHistorySchema = z.object({
 		.describe("Optional maker address to filter trades by"),
 });
 
+/**
+ * Retrieves trade history for the authenticated account.
+ */
 export async function handleGetTradeHistory(
 	args: z.infer<typeof GetTradeHistorySchema>,
 ) {

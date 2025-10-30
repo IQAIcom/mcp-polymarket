@@ -21,6 +21,9 @@ export const PlaceOrderSchema = z.object({
 		),
 });
 
+/**
+ * Places a limit order on Polymarket.
+ */
 export async function handlePlaceOrder(args: z.infer<typeof PlaceOrderSchema>) {
 	const result = await tradeApi.placeOrder({
 		tokenId: args.tokenId,

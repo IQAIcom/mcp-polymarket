@@ -12,6 +12,9 @@ export const UpdateBalanceAllowanceSchema = z.object({
 		.describe("Optional token ID for conditional token"),
 });
 
+/**
+ * Updates balance and allowance for the authenticated account.
+ */
 export async function handleUpdateBalanceAllowance(
 	args: z.infer<typeof UpdateBalanceAllowanceSchema>,
 ) {

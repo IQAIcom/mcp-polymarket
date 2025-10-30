@@ -22,6 +22,9 @@ export const POLYGON_ADDRESSES = {
 	EXCHANGE_ADDRESS: "0x4bFb41d5B3570DeFd03C39a9A4D8dE6Bd8B8982E", // Polymarket Exchange
 } as const;
 
+/**
+ * Builds configuration from environment variables and optional overrides.
+ */
 export function getConfig(overrides: Partial<BaseConfig> = {}): BaseConfig {
 	const host =
 		overrides.host ??
@@ -29,11 +32,11 @@ export function getConfig(overrides: Partial<BaseConfig> = {}): BaseConfig {
 		"https://clob.polymarket.com";
 
 	const chainId = Number(
-		overrides.chainId ?? process.env.CHAIN_ID ?? 137, // Polygon mainnet
+		overrides.chainId ?? process.env.CHAIN_ID ?? 137,
 	);
 
 	const signatureType = Number(
-		overrides.signatureType ?? process.env.SIGNATURE_TYPE ?? 0, // Align with trading (EOA)
+		overrides.signatureType ?? process.env.SIGNATURE_TYPE ?? 0,
 	);
 
 	const rpcUrl =

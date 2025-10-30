@@ -8,6 +8,9 @@ export const GetOpenOrdersSchema = z.object({
 		.describe("Optional market address to filter orders by"),
 });
 
+/**
+ * Retrieves all open orders for the authenticated account.
+ */
 export async function handleGetOpenOrders(
 	args: z.infer<typeof GetOpenOrdersSchema>,
 ) {

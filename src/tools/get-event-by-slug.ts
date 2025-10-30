@@ -5,6 +5,9 @@ export const GetEventBySlugSchema = z.object({
 	slug: z.string().describe("The event slug identifier"),
 });
 
+/**
+ * Retrieves detailed information about a specific event by its slug.
+ */
 export async function handleGetEventBySlug(
 	args: z.infer<typeof GetEventBySlugSchema>,
 ) {

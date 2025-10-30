@@ -12,6 +12,9 @@ export const GetBalanceAllowanceSchema = z.object({
 		.describe("Optional token ID for conditional token balance"),
 });
 
+/**
+ * Retrieves balance and allowance information for the authenticated account.
+ */
 export async function handleGetBalanceAllowance(
 	args: z.infer<typeof GetBalanceAllowanceSchema>,
 ) {

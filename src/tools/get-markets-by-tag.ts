@@ -15,6 +15,9 @@ export const GetMarketsByTagSchema = z.object({
 		.describe("Include closed markets (default: false)"),
 });
 
+/**
+ * Retrieves markets filtered by a specific tag ID.
+ */
 export async function handleGetMarketsByTag(
 	args: z.infer<typeof GetMarketsByTagSchema>,
 ) {

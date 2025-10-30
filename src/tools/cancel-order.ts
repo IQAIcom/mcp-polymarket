@@ -5,6 +5,9 @@ export const CancelOrderSchema = z.object({
 	orderId: z.string().describe("The unique identifier of the order to cancel"),
 });
 
+/**
+ * Cancels a specific order by its ID.
+ */
 export async function handleCancelOrder(
 	args: z.infer<typeof CancelOrderSchema>,
 ) {

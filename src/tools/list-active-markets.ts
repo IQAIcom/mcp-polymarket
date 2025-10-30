@@ -14,6 +14,9 @@ export const ListActiveMarketsSchema = z.object({
 		.describe("Number of markets to skip for pagination (default: 0)"),
 });
 
+/**
+ * Lists all currently active markets with pagination.
+ */
 export async function handleListActiveMarkets(
 	args: z.infer<typeof ListActiveMarketsSchema>,
 ) {

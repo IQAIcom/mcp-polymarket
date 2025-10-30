@@ -7,6 +7,9 @@ export const GetMarketBySlugSchema = z.object({
 		.describe("The market slug identifier (e.g., 'will-trump-win-2024')"),
 });
 
+/**
+ * Retrieves detailed information about a specific market by its slug.
+ */
 export async function handleGetMarketBySlug(
 	args: z.infer<typeof GetMarketBySlugSchema>,
 ) {

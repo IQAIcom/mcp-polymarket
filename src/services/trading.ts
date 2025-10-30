@@ -52,11 +52,8 @@ export class PolymarketTrading {
 	 * Initialize the CLOB client with credentials
 	 */
 	async initialize(): Promise<void> {
-		// Avoid re-initializing if already initialized
 		if (this.client) return;
-		// Resolve merged configuration
 		const cfg = getConfig(this.config);
-		// Use a provider-backed signer so we can submit on-chain approvals
 		const provider = new providers.JsonRpcProvider(cfg.rpcUrl);
 		const ethersSigner = new Wallet(this.config.privateKey, provider);
 		this.signer = ethersSigner;
@@ -125,7 +122,6 @@ export class PolymarketTrading {
 		const usdc = new Contract(USDC_ADDRESS, USDC_ABI, signer);
 		const ctf = new Contract(CTF_ADDRESS, CTF_ABI, signer);
 
-		// Check current allowances/approvals
 		const [usdcAllowanceCtf, usdcAllowanceExchange, ctfApprovedForExchange] =
 			await Promise.all([
 				usdc.allowance(signer.address, CTF_ADDRESS),
@@ -133,19 +129,16 @@ export class PolymarketTrading {
 				ctf.isApprovedForAll(signer.address, EXCHANGE_ADDRESS),
 			]);
 
-		// Approve USDC for CTF if needed
 		if (usdcAllowanceCtf.isZero()) {
 			const tx = await usdc.approve(CTF_ADDRESS, constants.MaxUint256);
 			await tx.wait();
 		}
 
-		// Approve USDC for Exchange if needed
 		if (usdcAllowanceExchange.isZero()) {
 			const tx = await usdc.approve(EXCHANGE_ADDRESS, constants.MaxUint256);
 			await tx.wait();
 		}
 
-		// Approve CTF for Exchange if needed
 		if (!ctfApprovedForExchange) {
 			const tx = await ctf.setApprovalForAll(EXCHANGE_ADDRESS, true);
 			await tx.wait();
@@ -163,12 +156,10 @@ export class PolymarketTrading {
 		orderType?: "GTC" | "GTD";
 	}): Promise<unknown> {
 		await this.ensureInitialized();
-		// Ensure on-chain approvals before submitting a write order
 		await this.ensureAllowances(this.getSigner());
 
 		const side: Side = args.side === "BUY" ? Side.BUY : Side.SELL;
 
-		// Validate and convert order type
 		const orderTypeStr = args.orderType || "GTC";
 		const orderType: OrderType.GTC | OrderType.GTD =
 			orderTypeStr === "GTD" ? OrderType.GTD : OrderType.GTC;
@@ -201,12 +192,10 @@ export class PolymarketTrading {
 		orderType?: "FOK" | "FAK";
 	}): Promise<unknown> {
 		await this.ensureInitialized();
-		// Ensure on-chain approvals before submitting a write order
 		await this.ensureAllowances(this.getSigner());
 
 		const side: Side = args.side === "BUY" ? Side.BUY : Side.SELL;
 
-		// Validate and convert order type
 		const orderTypeStr = args.orderType || "FOK";
 		const orderType: OrderType.FOK | OrderType.FAK =
 			orderTypeStr === "FAK" ? OrderType.FAK : OrderType.FOK;
