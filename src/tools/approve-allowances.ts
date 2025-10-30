@@ -20,6 +20,30 @@ const approveAllowancesSchema = z.object({
 		.describe(
 			"SetApprovalForAll on CTF tokens for the Exchange (default: true)",
 		),
+	waitForConfirmations: z
+		.number()
+		.int()
+		.min(0)
+		.max(5)
+		.optional()
+		.describe(
+			"How many confirmations to wait before returning (0 = return immediately after broadcasting). Default: 0",
+		),
+	minPriorityFeeGwei: z
+		.number()
+		.int()
+		.min(1)
+		.max(500)
+		.optional()
+		.describe(
+			"Minimum priority fee (tip cap) in gwei to use when sending approvals. Default: 30 gwei",
+		),
+	force: z
+		.boolean()
+		.optional()
+		.describe(
+			"Force sending approval transactions even if already approved (default: false)",
+		),
 });
 
 export const approveAllowancesTool = {
@@ -47,6 +71,9 @@ export const approveAllowancesTool = {
 			approveUsdcForCTF: args.approveUsdcForCTF,
 			approveUsdcForExchange: args.approveUsdcForExchange,
 			approveCtfForExchange: args.approveCtfForExchange,
+			waitForConfirmations: args.waitForConfirmations ?? 0,
+			minPriorityFeeGwei: args.minPriorityFeeGwei,
+			force: args.force ?? false,
 		});
 
 		const after = await svc.check();
