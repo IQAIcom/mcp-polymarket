@@ -22,8 +22,9 @@ Trading tools are automatically enabled when `POLYMARKET_PRIVATE_KEY` is configu
 - **cancel_order**: Cancel a specific order
 - **cancel_all_orders**: Cancel all open orders
 - **get_trade_history**: View your trade history
-- **get_balance_allowance**: Check account balances and allowances
-- **update_balance_allowance**: Update allowances (still available; approvals are now auto-managed on first run)
+- **get_balance_allowance**: Check account balances and allowances (requires approvals)
+- **update_balance_allowance**: Update balance/allowance metadata with the exchange
+- **approve_allowances**: Grant the USDC and Conditional Tokens approvals required for trading
 
 **Note**: Without a private key configured, only read-only market data tools are available.
 
@@ -145,6 +146,16 @@ When using the trading features, you'll need to provide your Ethereum wallet's p
 
 **Without a private key configured, only read-only market data tools are available.**
 
+### Approvals and Allowances
+
+This server does not auto-approve tokens. When an operation requires approvals, the tool returns a structured "approval required" response explaining:
+
+- Why approvals are needed and which contracts are involved (USDC, CTF, Exchange)
+- Which approvals are missing for your wallet
+- The next step: run the `approve_allowances` tool
+
+After running `approve_allowances`, simply retry your original action. Approvals are standard ERC20/ERC1155 permissions and can be revoked any time in your wallet.
+
 ## 💡 Usage Examples
 
 Once configured, you can use the tools through your MCP client. Here are some example queries:
@@ -220,6 +231,12 @@ Your AI agent can now answer questions and perform actions like:
    Cancel order with ID "0x123..."
    ```
 
+5. **Grant approvals (when prompted)**:
+   ```
+   Approve required allowances for trading
+   ```
+   The agent will typically prompt to run this if approvals are missing, then retry your action.
+
 ## 📚 API Documentation
 
 This server uses the following Polymarket APIs:
@@ -292,15 +309,17 @@ mcp-polymarket/
 │   ├── services/          # Service layer
 │   │   ├── api.ts         # Gamma API client
 │   │   ├── config.ts      # Configuration management
-│   │   └── trading.ts     # Trading client (CLOB)
+│   │   ├── trading.ts     # Trading client (CLOB)
+│   │   └── approvals.ts   # Approvals service (check/assert/approve)
 │   ├── tools/             # MCP tool implementations
 │   │   ├── cancel-all-orders.ts
 │   │   ├── cancel-order.ts
 │   │   ├── get-all-tags.ts
 │   │   ├── get-balance-allowance.ts
+│   │   ├── approve-allowances.ts
 │   │   └── ...            # Additional tool files
 │   ├── index.ts           # Main MCP server
-│   └── trading.ts         # Trading utilities
+│   
 ├── dist/                  # Compiled JavaScript output
 ├── .changeset/            # Changeset configuration
 ├── .github/               # GitHub Actions and templates
