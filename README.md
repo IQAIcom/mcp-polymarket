@@ -317,7 +317,7 @@ mcp-polymarket/
 ## 🔧 Technologies
 
 - **TypeScript**: Type-safe development
-- **@modelcontextprotocol/sdk**: MCP server implementation
+- **fastmcp**: MCP server implementation
 - **@polymarket/clob-client**: Polymarket trading client
 - **Biome**: Fast linter and formatter
 
@@ -353,42 +353,6 @@ The following environment variables are supported:
 - It runs locally on user machines, not as a public server
 - All API interactions are authenticated and controlled
 - Your private key never leaves your machine
-
-## 📄 License
-
-MIT
-
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature-name`
-3. Make your changes
-4. Ensure all code passes linting and type checking:
-   ```bash
-   pnpm run build
-   pnpm run check
-   ```
-5. Create a changeset for your changes:
-   ```bash
-   pnpm changeset
-   ```
-6. Commit your changes and push to your fork
-7. Create a Pull Request
-
-### PR Requirements
-- [ ] All tests pass
-- [ ] Code is properly formatted and linted
-- [ ] A changeset is included (unless it's a docs-only change)
-- [ ] PR description follows the template
-
-## 💬 Support
-
-For issues or questions:
-- **Polymarket API Documentation**: https://docs.polymarket.com/
-- **MCP Documentation**: https://modelcontextprotocol.io/
-- **GitHub Issues**: Report bugs or request features
 
 ## ⚠️ Disclaimer
 
