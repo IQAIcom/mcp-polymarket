@@ -5,7 +5,19 @@ import type {
 	UserOrder,
 } from "@polymarket/clob-client";
 import { ClobClient, OrderType, Side } from "@polymarket/clob-client";
-import { Wallet } from "ethers";
+import { Contract, constants, providers, Wallet } from "ethers";
+import { getConfig, POLYGON_ADDRESSES } from "./config.js";
+
+// Minimal ABIs needed for approvals
+const USDC_ABI = [
+	"function allowance(address owner, address spender) view returns (uint256)",
+	"function approve(address spender, uint256 amount) returns (bool)",
+];
+
+const CTF_ABI = [
+	"function isApprovedForAll(address owner, address operator) view returns (bool)",
+	"function setApprovalForAll(address operator, bool approved)",
+];
 
 /**
  * Interface for trading configuration
@@ -15,6 +27,8 @@ export interface TradingConfig {
 	chainId?: number;
 	funderAddress?: string;
 	signatureType?: number;
+	rpcUrl?: string;
+	host?: string;
 }
 
 /**
@@ -22,6 +36,8 @@ export interface TradingConfig {
  */
 export class PolymarketTrading {
 	private client: ClobClient | null = null;
+	private initPromise: Promise<void> | null = null;
+	private signer: Wallet | null = null;
 	private config: TradingConfig;
 
 	constructor(config: TradingConfig) {
@@ -36,30 +52,97 @@ export class PolymarketTrading {
 	 * Initialize the CLOB client with credentials
 	 */
 	async initialize(): Promise<void> {
-		const ethersSigner = new Wallet(this.config.privateKey);
-		const host = "https://clob.polymarket.com";
+		if (this.client) return;
+		const cfg = getConfig(this.config);
+		const provider = new providers.JsonRpcProvider(cfg.rpcUrl);
+		const ethersSigner = new Wallet(this.config.privateKey, provider);
+		this.signer = ethersSigner;
+		const host = cfg.host;
 
 		// Create API credentials first
-		const tempClient = new ClobClient(
+		const creds = await new ClobClient(
 			host,
-			this.config.chainId || 137,
+			cfg.chainId || 137,
 			ethersSigner,
 			undefined,
-			this.config.signatureType,
-			this.config.funderAddress,
-		);
-
-		const creds = await tempClient.createOrDeriveApiKey();
+			cfg.signatureType,
+			cfg.funderAddress,
+		).createOrDeriveApiKey();
 
 		// Create client with credentials
 		this.client = new ClobClient(
 			host,
-			this.config.chainId || 137,
+			cfg.chainId || 137,
 			ethersSigner,
 			creds,
-			this.config.signatureType,
-			this.config.funderAddress,
+			cfg.signatureType,
+			cfg.funderAddress,
 		);
+	}
+
+	/**
+	 * Ensures the client is initialized (lazy-init on first use).
+	 * Safe to call multiple times; concurrent calls share the same promise.
+	 */
+	private async ensureInitialized(): Promise<void> {
+		if (this.client) return;
+		if (!this.initPromise) {
+			this.initPromise = this.initialize().catch((err) => {
+				// Reset so future attempts can retry after a failure
+				this.initPromise = null;
+				throw err;
+			});
+		}
+		await this.initPromise;
+	}
+
+	/** Returns the initialized client or throws if not ready (should be called after ensureInitialized). */
+	private getClient(): ClobClient {
+		if (!this.client) {
+			throw new Error("Client not initialized");
+		}
+		return this.client;
+	}
+
+	/** Returns the signer or throws if not ready (should be set during initialize). */
+	private getSigner(): Wallet {
+		if (!this.signer) {
+			throw new Error("Signer not initialized");
+		}
+		return this.signer;
+	}
+
+	/**
+	 * Ensure USDC and Conditional Tokens approvals are set for the Exchange
+	 * - USDC allowance for CTF and Exchange (MaxUint256 if zero)
+	 * - CTF setApprovalForAll for Exchange
+	 */
+	private async ensureAllowances(signer: Wallet): Promise<void> {
+		const { USDC_ADDRESS, CTF_ADDRESS, EXCHANGE_ADDRESS } = POLYGON_ADDRESSES;
+		const usdc = new Contract(USDC_ADDRESS, USDC_ABI, signer);
+		const ctf = new Contract(CTF_ADDRESS, CTF_ABI, signer);
+
+		const [usdcAllowanceCtf, usdcAllowanceExchange, ctfApprovedForExchange] =
+			await Promise.all([
+				usdc.allowance(signer.address, CTF_ADDRESS),
+				usdc.allowance(signer.address, EXCHANGE_ADDRESS),
+				ctf.isApprovedForAll(signer.address, EXCHANGE_ADDRESS),
+			]);
+
+		if (usdcAllowanceCtf.isZero()) {
+			const tx = await usdc.approve(CTF_ADDRESS, constants.MaxUint256);
+			await tx.wait();
+		}
+
+		if (usdcAllowanceExchange.isZero()) {
+			const tx = await usdc.approve(EXCHANGE_ADDRESS, constants.MaxUint256);
+			await tx.wait();
+		}
+
+		if (!ctfApprovedForExchange) {
+			const tx = await ctf.setApprovalForAll(EXCHANGE_ADDRESS, true);
+			await tx.wait();
+		}
 	}
 
 	/**
@@ -72,13 +155,11 @@ export class PolymarketTrading {
 		side: "BUY" | "SELL";
 		orderType?: "GTC" | "GTD";
 	}): Promise<unknown> {
-		if (!this.client) {
-			throw new Error("Client not initialized. Call initialize() first.");
-		}
+		await this.ensureInitialized();
+		await this.ensureAllowances(this.getSigner());
 
 		const side: Side = args.side === "BUY" ? Side.BUY : Side.SELL;
 
-		// Validate and convert order type
 		const orderTypeStr = args.orderType || "GTC";
 		const orderType: OrderType.GTC | OrderType.GTD =
 			orderTypeStr === "GTD" ? OrderType.GTD : OrderType.GTC;
@@ -90,7 +171,8 @@ export class PolymarketTrading {
 			side: side,
 		};
 
-		return this.client.createAndPostOrder(
+		const client = this.getClient();
+		return client.createAndPostOrder(
 			userOrder,
 			{
 				tickSize: "0.001",
@@ -109,13 +191,11 @@ export class PolymarketTrading {
 		side: "BUY" | "SELL";
 		orderType?: "FOK" | "FAK";
 	}): Promise<unknown> {
-		if (!this.client) {
-			throw new Error("Client not initialized. Call initialize() first.");
-		}
+		await this.ensureInitialized();
+		await this.ensureAllowances(this.getSigner());
 
 		const side: Side = args.side === "BUY" ? Side.BUY : Side.SELL;
 
-		// Validate and convert order type
 		const orderTypeStr = args.orderType || "FOK";
 		const orderType: OrderType.FOK | OrderType.FAK =
 			orderTypeStr === "FAK" ? OrderType.FAK : OrderType.FOK;
@@ -126,7 +206,8 @@ export class PolymarketTrading {
 			side: side,
 		};
 
-		return this.client.createAndPostMarketOrder(
+		const client = this.getClient();
+		return client.createAndPostMarketOrder(
 			userMarketOrder,
 			{
 				tickSize: "0.001",
@@ -140,77 +221,63 @@ export class PolymarketTrading {
 	 * Get all open orders
 	 */
 	async getOpenOrders(params?: OpenOrderParams): Promise<unknown> {
-		if (!this.client) {
-			throw new Error("Client not initialized. Call initialize() first.");
-		}
-
-		return this.client.getOpenOrders(params);
+		await this.ensureInitialized();
+		const client = this.getClient();
+		return client.getOpenOrders(params);
 	}
 
 	/**
 	 * Get a specific order by ID
 	 */
 	async getOrder(orderId: string): Promise<unknown> {
-		if (!this.client) {
-			throw new Error("Client not initialized. Call initialize() first.");
-		}
-
-		return this.client.getOrder(orderId);
+		await this.ensureInitialized();
+		const client = this.getClient();
+		return client.getOrder(orderId);
 	}
 
 	/**
 	 * Cancel a specific order by ID
 	 */
 	async cancelOrder(orderId: string): Promise<unknown> {
-		if (!this.client) {
-			throw new Error("Client not initialized. Call initialize() first.");
-		}
-
-		return this.client.cancelOrder({ orderID: orderId });
+		await this.ensureInitialized();
+		const client = this.getClient();
+		return client.cancelOrder({ orderID: orderId });
 	}
 
 	/**
 	 * Cancel all open orders
 	 */
 	async cancelAllOrders(): Promise<unknown> {
-		if (!this.client) {
-			throw new Error("Client not initialized. Call initialize() first.");
-		}
-
-		return this.client.cancelAll();
+		await this.ensureInitialized();
+		const client = this.getClient();
+		return client.cancelAll();
 	}
 
 	/**
 	 * Get trade history
 	 */
 	async getTradeHistory(params?: TradeParams): Promise<unknown> {
-		if (!this.client) {
-			throw new Error("Client not initialized. Call initialize() first.");
-		}
-
-		return this.client.getTrades(params);
+		await this.ensureInitialized();
+		const client = this.getClient();
+		return client.getTrades(params);
 	}
 
 	/**
 	 * Get balance and allowance information
 	 */
 	async getBalanceAllowance(params?: BalanceAllowanceParams): Promise<unknown> {
-		if (!this.client) {
-			throw new Error("Client not initialized. Call initialize() first.");
-		}
-
-		return this.client.getBalanceAllowance(params);
+		await this.ensureInitialized();
+		const client = this.getClient();
+		return client.getBalanceAllowance(params);
 	}
 
 	/**
 	 * Update balance and allowance
 	 */
 	async updateBalanceAllowance(params?: BalanceAllowanceParams): Promise<void> {
-		if (!this.client) {
-			throw new Error("Client not initialized. Call initialize() first.");
-		}
-
-		return this.client.updateBalanceAllowance(params);
+		await this.ensureInitialized();
+		const client = this.getClient();
+		return client.updateBalanceAllowance(params);
 	}
 }
 
@@ -222,22 +289,37 @@ let tradingInstance: PolymarketTrading | null = null;
  */
 export function getTradingInstance(): PolymarketTrading {
 	if (!tradingInstance) {
-		const privateKey = process.env.POLYMARKET_PRIVATE_KEY;
-		if (!privateKey) {
+		const cfg = getConfig();
+		if (!cfg.privateKey) {
 			throw new Error(
 				"POLYMARKET_PRIVATE_KEY environment variable is required for trading operations",
 			);
 		}
 
-		tradingInstance = new PolymarketTrading({ privateKey });
+		tradingInstance = new PolymarketTrading({
+			privateKey: cfg.privateKey,
+			chainId: cfg.chainId,
+			signatureType: cfg.signatureType,
+			funderAddress: cfg.funderAddress,
+			rpcUrl: cfg.rpcUrl,
+			host: cfg.host,
+		});
 	}
 	return tradingInstance;
 }
 
-/**
- * Initialize the trading client (must be called before trading operations)
- */
-export async function initializeTrading(): Promise<void> {
-	const instance = getTradingInstance();
-	await instance.initialize();
-}
+// Lazy proxy facade for easy consumption without triggering env checks at import time
+// Usage: await tradeApi.getOrder("...")
+export const tradeApi: PolymarketTrading = new Proxy({} as PolymarketTrading, {
+	get(_target, prop, _receiver) {
+		const instance = getTradingInstance() as unknown as Record<
+			string | symbol,
+			unknown
+		>;
+		const value = instance[prop as keyof PolymarketTrading] as unknown;
+		if (typeof value === "function") {
+			return value.bind(instance);
+		}
+		return value;
+	},
+});

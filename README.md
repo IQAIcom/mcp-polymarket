@@ -23,7 +23,7 @@ Trading tools are automatically enabled when `POLYMARKET_PRIVATE_KEY` is configu
 - **cancel_all_orders**: Cancel all open orders
 - **get_trade_history**: View your trade history
 - **get_balance_allowance**: Check account balances and allowances
-- **update_balance_allowance**: Update allowances (required before trading)
+- **update_balance_allowance**: Update allowances (still available; approvals are now auto-managed on first run)
 
 **Note**: Without a private key configured, only read-only market data tools are available.
 
@@ -59,6 +59,23 @@ The easiest way to use this MCP server is with `npx`, which runs the package dir
       }
     }
   }
+}
+```
+
+Optionally, you can configure a custom Polygon RPC endpoint (recommended for reliability):
+
+```json
+{
+   "mcpServers": {
+      "polymarket": {
+         "command": "npx",
+         "args": ["-y", "@iqai/mcp-polymarket"],
+         "env": {
+            "POLYMARKET_PRIVATE_KEY": "your_private_key_here",
+            "POLYMARKET_RPC_URL": "https://polygon-mainnet.g.alchemy.com/v2/<YOUR_KEY>"
+         }
+      }
+   }
 }
 ```
 
@@ -313,9 +330,16 @@ To enable trading functionality:
    - Add `POLYMARKET_PRIVATE_KEY` to your MCP server configuration
    - The server will automatically enable trading tools when detected
 
-4. **Update allowances (first time only)**
-   - Use `update_balance_allowance` tool before your first trade
-   - This approves the Polymarket contract to use your funds
+4. **Allowances and approvals**
+   - The server now automatically checks and sets the required USDC and Conditional Tokens approvals during initialization (first run may take a few seconds while transactions confirm)
+   - The `update_balance_allowance` tool remains available if you want to manage allowances manually
+
+### Environment Variables
+
+The following environment variables are supported:
+
+- `POLYMARKET_PRIVATE_KEY` (required for trading): Private key of the wallet used for trading
+- `POLYMARKET_RPC_URL` (optional): Polygon RPC URL to broadcast approval transactions. Defaults to `https://polygon-rpc.com`
 
 **Note on Dependencies**: This project uses `@polymarket/clob-client` which has transitive dependencies with known vulnerabilities in older versions of `axios`. These vulnerabilities (SSRF, CSRF) are mitigated in this use case because:
 - The server only connects to trusted Polymarket API endpoints
