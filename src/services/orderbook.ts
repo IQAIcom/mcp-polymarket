@@ -14,7 +14,7 @@ export class PolymarketOrderbook {
 	 * Get the order book for a specific token
 	 */
 	async getOrderBook(tokenId: string): Promise<unknown> {
-		return this.api.fetchClobAPI(`/book?token_id=${tokenId}`);
+		return this.api.getOrderBook(tokenId);
 	}
 }
 

@@ -1,59 +1,169 @@
+import axios, { type AxiosInstance } from "axios";
+import { CLOB_HOST, DATA_API_URL, GAMMA_API_URL } from "./constants.js";
+
 /**
  * Configuration for Polymarket API clients
  */
 export interface APIConfig {
 	gammaApiBase?: string;
 	clobApiBase?: string;
+	dataApiBase?: string;
+	timeout?: number;
 }
 
 /**
- * Class to handle Polymarket API requests
+ * Class to handle Polymarket API requests using axios
  */
 export class PolymarketAPI {
-	private gammaApiBase: string;
-	private clobApiBase: string;
+	private gammaApi: AxiosInstance;
+	private dataApi: AxiosInstance;
+	private clobApi: AxiosInstance;
 
 	constructor(config: APIConfig = {}) {
-		this.gammaApiBase =
-			config.gammaApiBase ||
-			process.env.GAMMA_API_BASE ||
-			"https://gamma-api.polymarket.com";
-		this.clobApiBase =
-			config.clobApiBase ||
-			process.env.CLOB_API_BASE ||
-			"https://clob.polymarket.com";
+		const timeout = config.timeout || 30000;
+
+		// Gamma Markets API - for market discovery and metadata
+		this.gammaApi = axios.create({
+			baseURL:
+				config.gammaApiBase || process.env.GAMMA_API_BASE || GAMMA_API_URL,
+			timeout,
+			headers: {
+				"Content-Type": "application/json",
+			},
+		});
+
+		// Data API - for user data, holdings, and activities
+		this.dataApi = axios.create({
+			baseURL: config.dataApiBase || process.env.DATA_API_BASE || DATA_API_URL,
+			timeout,
+			headers: {
+				"Content-Type": "application/json",
+			},
+		});
+
+		// CLOB API - for order book and trading data
+		this.clobApi = axios.create({
+			baseURL: config.clobApiBase || process.env.CLOB_API_BASE || CLOB_HOST,
+			timeout,
+			headers: {
+				"Content-Type": "application/json",
+			},
+		});
+
+		// Add response interceptors for error handling
+		this.setupInterceptors();
+	}
+
+	private setupInterceptors() {
+		const responseInterceptor = (response: any) => response;
+		const errorInterceptor = (error: any) => {
+			if (error.response) {
+				// Server responded with error status
+				const { status, data } = error.response;
+				throw new Error(
+					`API Error ${status}: ${data?.message || data?.error || "Unknown error"}`,
+				);
+			}
+			if (error.request) {
+				// Request was made but no response received
+				throw new Error("Network error: No response from server");
+			}
+			// Something else happened
+			throw new Error(`Request error: ${error.message}`);
+		};
+
+		this.gammaApi.interceptors.response.use(
+			responseInterceptor,
+			errorInterceptor,
+		);
+		this.dataApi.interceptors.response.use(
+			responseInterceptor,
+			errorInterceptor,
+		);
+		this.clobApi.interceptors.response.use(
+			responseInterceptor,
+			errorInterceptor,
+		);
 	}
 
 	/**
-	 * Fetch data from the Gamma API
+	 * Get markets from Gamma API
 	 */
-	async fetchGammaAPI(endpoint: string): Promise<unknown> {
-		const url = `${this.gammaApiBase}${endpoint}`;
-		const response = await fetch(url);
-
-		if (!response.ok) {
-			throw new Error(
-				`Gamma API request failed: ${response.status} ${response.statusText}`,
-			);
-		}
-
-		return response.json();
+	async getMarkets(params: Record<string, any> = {}) {
+		const response = await this.gammaApi.get("/markets", { params });
+		return response.data;
 	}
 
 	/**
-	 * Fetch data from the CLOB API
+	 * Get events from Gamma API
 	 */
-	async fetchClobAPI(endpoint: string): Promise<unknown> {
-		const url = `${this.clobApiBase}${endpoint}`;
-		const response = await fetch(url);
+	async getEvents(params: Record<string, any> = {}) {
+		const response = await this.gammaApi.get("/events", { params });
+		return response.data;
+	}
 
-		if (!response.ok) {
-			throw new Error(
-				`CLOB API request failed: ${response.status} ${response.statusText}`,
-			);
-		}
+	/**
+	 * Get all tags from Gamma API
+	 */
+	async getTags() {
+		const response = await this.gammaApi.get("/tags");
+		return response.data;
+	}
 
-		return response.json();
+	/**
+	 * Get user positions from Data API
+	 */
+	async getUserPositions(user: string, params: Record<string, any> = {}) {
+		const response = await this.dataApi.get("/positions", {
+			params: { user, ...params },
+		});
+		return response.data;
+	}
+
+	/**
+	 * Get user activity from Data API
+	 */
+	async getUserActivity(user: string, params: Record<string, any> = {}) {
+		const response = await this.dataApi.get("/activity", {
+			params: { user, ...params },
+		});
+		return response.data;
+	}
+
+	/**
+	 * Get market holders from Data API
+	 */
+	async getMarketHolders(token: string, params: Record<string, any> = {}) {
+		const response = await this.dataApi.get("/holders", {
+			params: { token, ...params },
+		});
+		return response.data;
+	}
+
+	/**
+	 * Get trades from Data API
+	 */
+	async getTrades(params: Record<string, any> = {}) {
+		const response = await this.dataApi.get("/trades", { params });
+		return response.data;
+	}
+
+	/**
+	 * Get order book from CLOB API
+	 */
+	async getOrderBook(tokenId: string, params: Record<string, any> = {}) {
+		const response = await this.clobApi.get("/book", {
+			params: { token_id: tokenId, ...params },
+		});
+		return response.data;
+	}
+
+	/**
+	 * Get market prices from CLOB API
+	 */
+	async getMarketPrices(params: Record<string, any> = {}) {
+		const response = await this.clobApi.get("/prices", { params });
+		return response.data;
 	}
 }
 

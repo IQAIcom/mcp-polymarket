@@ -14,32 +14,36 @@ export class PolymarketMarkets {
 	 * Get market details by slug identifier
 	 */
 	async getMarketBySlug(slug: string): Promise<unknown> {
-		return this.api.fetchGammaAPI(`/markets/slug/${slug}`);
+		const markets = await this.api.getMarkets({ slug });
+		return markets.length > 0 ? markets[0] : null;
 	}
 
 	/**
 	 * Get event details by slug identifier
 	 */
 	async getEventBySlug(slug: string): Promise<unknown> {
-		return this.api.fetchGammaAPI(`/events/slug/${slug}`);
+		const events = await this.api.getEvents({ slug });
+		return events.length > 0 ? events[0] : null;
 	}
 
 	/**
 	 * List all active markets with pagination
 	 */
 	async listActiveMarkets(limit = 20, offset = 0): Promise<unknown> {
-		return this.api.fetchGammaAPI(
-			`/events?order=id&ascending=false&closed=false&limit=${limit}&offset=${offset}`,
-		);
+		return this.api.getEvents({
+			order: "id",
+			ascending: false,
+			closed: false,
+			limit,
+			offset,
+		});
 	}
 
 	/**
 	 * Search markets, events, and profiles
 	 */
 	async searchMarkets(query: string): Promise<unknown> {
-		return this.api.fetchGammaAPI(
-			`/public-search?q=${encodeURIComponent(query)}`,
-		);
+		return this.api.getMarkets({ search: query });
 	}
 
 	/**
@@ -50,16 +54,18 @@ export class PolymarketMarkets {
 		limit = 20,
 		closed = false,
 	): Promise<unknown> {
-		return this.api.fetchGammaAPI(
-			`/markets?tag_id=${tagId}&limit=${limit}&closed=${closed}`,
-		);
+		return this.api.getMarkets({
+			tag_id: Number.parseInt(tagId, 10),
+			closed,
+			limit,
+		});
 	}
 
 	/**
 	 * Get all available tags
 	 */
 	async getAllTags(): Promise<unknown> {
-		return this.api.fetchGammaAPI("/tags");
+		return this.api.getTags();
 	}
 }
 

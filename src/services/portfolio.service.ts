@@ -1,7 +1,8 @@
 import type { BalanceAllowanceParams } from "@polymarket/clob-client";
 import { AssetType, type ClobClient } from "@polymarket/clob-client";
 import { Contract, type providers, utils, type Wallet } from "ethers";
-import { DATA_API_URL, USDC_ABI, USDC_ADDRESS } from "./constants.js";
+import { getAPIInstance } from "./api.js";
+import { USDC_ABI, USDC_ADDRESS } from "./constants.js";
 
 /**
  * Service to handle portfolio and balance operations
@@ -53,10 +54,12 @@ export class PortfolioService {
 			let positions: any[] = [];
 			let positionsError: string | null = null;
 			try {
-				const response = await fetch(
-					`${DATA_API_URL}/positions?sizeThreshold=1&limit=50&sortDirection=DESC&user=${this.signer.address}`,
-				);
-				const positionsData = await response.json();
+				const api = getAPIInstance();
+				const positionsData = await api.getUserPositions(this.signer.address, {
+					sizeThreshold: 1,
+					limit: 50,
+					sortDirection: "DESC",
+				});
 				positions = positionsData || [];
 			} catch (error) {
 				positionsError = (error as Error).message;

@@ -34,10 +34,11 @@
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.20.2",
 		"@polymarket/clob-client": "^4.22.8",
+		"axios": "^1.13.1",
 		"ethers": "^5.8.0",
 		"fastmcp": "^3.22.0",
-		"zod": "^3.25.76",
-		"shx": "^0.3.4"
+		"shx": "^0.3.4",
+		"zod": "^3.25.76"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.3.1",

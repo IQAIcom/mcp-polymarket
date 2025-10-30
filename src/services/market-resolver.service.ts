@@ -1,4 +1,5 @@
-import { DEFAULT_TICK_SIZE, GAMMA_API_URL } from "./constants.js";
+import { getAPIInstance } from "./api.js";
+import { DEFAULT_TICK_SIZE } from "./constants.js";
 import type { MarketInfo, ResolvedMarketDetails } from "./types.js";
 
 /**
@@ -32,8 +33,8 @@ export class MarketResolverService {
 
 		// Fetch market details from Gamma API
 		console.log(`Fetching market details for: ${marketSlug}`);
-		const response = await fetch(`${GAMMA_API_URL}/markets?slug=${marketSlug}`);
-		const markets = await response.json();
+		const api = getAPIInstance();
+		const markets = await api.getMarkets({ slug: marketSlug });
 
 		if (!markets || markets.length === 0) {
 			throw new Error(`Market not found: ${marketSlug}`);
