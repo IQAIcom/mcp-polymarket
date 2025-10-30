@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.5
+
+### Patch Changes
+
+- dea907e: Implement Polymarket API integration, add approval logic for USDC and CTF, and introduce new trading tools. Refactor existing code for better organization and lazy initialization.
+- aea156e: Makes approvals manual instead of automatic
+
 ## 0.0.4
 
 ### Patch Changes
