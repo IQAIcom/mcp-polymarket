@@ -38,7 +38,6 @@
 		"ethers": "^5.7.2",
 		"fastmcp": "^3.22.0",
 		"shx": "^0.3.4",
-		"viem": "^2.38.5",
 		"zod": "^3.25.76"
 	},
 	"devDependencies": {

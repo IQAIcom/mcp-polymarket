@@ -1,13 +1,10 @@
 import {
 	ClobClient,
-	createSignerForProvider,
 	OrderType,
 	Side,
 	type UserOrder,
 } from "@dschz/polymarket-clob-client";
-import { createWalletClient, http } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
-import { polygon } from "viem/chains";
+import { providers, Wallet } from "ethers";
 
 async function main() {
 	// Required env
@@ -25,18 +22,11 @@ async function main() {
 	const HOST =
 		process.env.POLYMARKET_CLOB_HOST || "https://clob.polymarket.com";
 	const CHAIN_ID = Number(process.env.POLYMARKET_CHAIN_ID || 137); // Polygon mainnet
-	const SIGNATURE_TYPE = Number(process.env.POLYMARKET_SIGNATURE_TYPE || 1); // 1 = server-side/private-key
+	const SIGNATURE_TYPE = Number(process.env.POLYMARKET_SIGNATURE_TYPE || 0); // 0 = EOA/ethers signer
 
-	// Set up viem wallet client and ethers-compatible signer wrapper
-	const account = privateKeyToAccount(PRIVATE_KEY as `0x${string}`);
-	const walletClient = createWalletClient({
-		chain: polygon,
-		transport: http(RPC_URL),
-		account,
-	});
-	// Pass viem transport to signer factory; type cast to EIP-1193 provider for compatibility
-	// biome-ignore lint/suspicious/noExplicitAny: SDK expects a generic EIP-1193 provider shape
-	const signer = createSignerForProvider(walletClient.transport as any);
+	// Set up ethers wallet and provider
+	const provider = new providers.JsonRpcProvider(RPC_URL);
+	const signer = new Wallet(PRIVATE_KEY, provider);
 
 	// First, derive API creds
 	const bootstrapClient = new ClobClient(HOST, CHAIN_ID, signer);
