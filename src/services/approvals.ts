@@ -1,16 +1,27 @@
-import { Contract, constants, providers, utils, Wallet } from "ethers";
+import {
+	createPublicClient,
+	createWalletClient,
+	http,
+	maxUint256,
+	type PublicClient,
+	parseAbi,
+	parseUnits,
+	type WalletClient,
+} from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { polygon } from "viem/chains";
 import { getConfig, POLYGON_ADDRESSES } from "./config.js";
 
 // Minimal ABIs needed for approvals
-const USDC_ABI = [
+const USDC_ABI = parseAbi([
 	"function allowance(address owner, address spender) view returns (uint256)",
 	"function approve(address spender, uint256 amount) returns (bool)",
-];
+]);
 
-const CTF_ABI = [
+const CTF_ABI = parseAbi([
 	"function isApprovedForAll(address owner, address operator) view returns (bool)",
 	"function setApprovalForAll(address operator, bool approved)",
-];
+]);
 
 export type ApprovalCheck = {
 	usdcAllowanceForCTF: string; // as string to avoid BigNumber JSON issues
@@ -26,17 +37,31 @@ export type ApprovalCheck = {
 };
 
 /**
- * Build a signer using the same config used elsewhere in the SDK
+ * Build viem clients using the same config used elsewhere in the SDK
  */
-function getSignerFromEnv(): Wallet {
+function getClientsFromEnv(): {
+	walletClient: WalletClient;
+	publicClient: PublicClient;
+	address: `0x${string}`;
+} {
 	const cfg = getConfig();
 	if (!cfg.privateKey) {
 		throw new Error(
 			"POLYMARKET_PRIVATE_KEY environment variable is required for approvals",
 		);
 	}
-	const provider = new providers.JsonRpcProvider(cfg.rpcUrl);
-	return new Wallet(cfg.privateKey, provider);
+	const account = privateKeyToAccount(cfg.privateKey as `0x${string}`);
+	const transport = http(cfg.rpcUrl);
+	const walletClient = createWalletClient({
+		chain: polygon,
+		transport,
+		account,
+	});
+	const publicClient = createPublicClient({
+		chain: polygon,
+		transport,
+	});
+	return { walletClient, publicClient, address: account.address };
 }
 
 export class ApprovalRequiredError extends Error {
@@ -77,22 +102,26 @@ export class ApprovalRequiredError extends Error {
  * Class-style approvals service for consistency with other services.
  */
 export class PolymarketApprovals {
-	private signer: Wallet;
+	private walletClient: WalletClient;
+	private publicClient: PublicClient;
+	private address: `0x${string}`;
 
-	constructor(signer?: Wallet) {
-		this.signer = signer ?? getSignerFromEnv();
-	}
-
-	/** Ensure we have a Provider */
-	private getProvider(): providers.Provider {
-		const provider = this.signer.provider;
-		if (!provider) throw new Error("Signer provider is not available");
-		return provider;
+	// Accept an optional signer argument for backwards compatibility; ignored in viem version
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	constructor(_signer?: unknown) {
+		const { walletClient, publicClient, address } = getClientsFromEnv();
+		this.walletClient = walletClient;
+		this.publicClient = publicClient;
+		this.address = address;
 	}
 
 	/** Get the next pending nonce for this signer */
 	private async getPendingNonce(): Promise<number> {
-		return this.signer.getTransactionCount("pending");
+		const n = await this.publicClient.getTransactionCount({
+			address: this.address,
+			blockTag: "pending",
+		});
+		return n;
 	}
 
 	/**
@@ -100,38 +129,45 @@ export class PolymarketApprovals {
 	 * Applies a +20% bump over suggested values and enforces a minimum priority fee.
 	 */
 	private async buildFeeOverrides(minPriorityFeeGwei?: number): Promise<{
-		maxFeePerGas: providers.TransactionRequest["maxFeePerGas"];
-		maxPriorityFeePerGas: providers.TransactionRequest["maxPriorityFeePerGas"];
+		maxFeePerGas: bigint;
+		maxPriorityFeePerGas: bigint;
 	}> {
-		const provider = this.getProvider();
-		const feeData = await provider.getFeeData();
+		// Prefer EIP-1559 estimates if available
+		let suggestedMaxFee: bigint | undefined;
+		let suggestedPri: bigint | undefined;
+		try {
+			const est = await this.publicClient.estimateFeesPerGas();
+			suggestedMaxFee = est.maxFeePerGas ?? undefined;
+			suggestedPri = est.maxPriorityFeePerGas ?? undefined;
+		} catch (_) {
+			// Fallback to legacy gas price heuristic
+			try {
+				const gasPrice = await this.publicClient.getGasPrice();
+				suggestedPri = gasPrice; // fallback
+				suggestedMaxFee = gasPrice * 2n;
+			} catch (_) {
+				// last resort hardcoded minimal values
+				suggestedPri = parseUnits("30", 9); // 30 gwei
+				suggestedMaxFee = suggestedPri * 2n;
+			}
+		}
 
 		const envMinPriGwei = Number(process.env.POLYMARKET_MIN_PRIORITY_FEE_GWEI);
 		const minPriGwei = Number.isFinite(envMinPriGwei)
 			? envMinPriGwei
 			: (minPriorityFeeGwei ?? 30); // default 30 gwei
+		const floorPri = parseUnits(String(minPriGwei), 9);
 
-		const floorPri = utils.parseUnits(String(minPriGwei), "gwei");
-		const suggestedPri = feeData.maxPriorityFeePerGas
-			? feeData.maxPriorityFeePerGas
-					.mul(12)
-					.div(10) // +20%
-			: floorPri;
-		const maxPriorityFeePerGas = suggestedPri.gte(floorPri)
-			? suggestedPri
-			: floorPri;
+		// +20% bump on suggested priority fee
+		const bumpPri = suggestedPri ? (suggestedPri * 12n) / 10n : floorPri;
+		const maxPriorityFeePerGas = bumpPri >= floorPri ? bumpPri : floorPri;
 
-		const suggestedMaxFee = feeData.maxFeePerGas
-			? feeData.maxFeePerGas
-					.mul(12)
-					.div(10) // +20%
-			: undefined;
-		const minMaxFee = maxPriorityFeePerGas.mul(2);
-		const maxFeePerGas = suggestedMaxFee
-			? suggestedMaxFee.gte(minMaxFee)
-				? suggestedMaxFee
-				: minMaxFee
+		// +20% bump on suggested max fee, enforce >= 2x priority
+		const minMaxFee = maxPriorityFeePerGas * 2n;
+		const bumpedMax = suggestedMaxFee
+			? (suggestedMaxFee * 12n) / 10n
 			: minMaxFee;
+		const maxFeePerGas = bumpedMax >= minMaxFee ? bumpedMax : minMaxFee;
 
 		return { maxFeePerGas, maxPriorityFeePerGas };
 	}
@@ -141,28 +177,30 @@ export class PolymarketApprovals {
 	 * Returns the transaction hash (or confirmed receipt hash if waiting > 0).
 	 */
 	private async sendWithNonceAndRetry(
-		send: (
-			overrides: providers.TransactionRequest,
-		) => Promise<providers.TransactionResponse>,
+		send: (overrides: {
+			nonce: number;
+			maxFeePerGas: bigint;
+			maxPriorityFeePerGas: bigint;
+		}) => Promise<`0x${string}`>,
 		nextNonceRef: { value: number },
 		waitConfs: number,
-		feeOverrides: Pick<
-			providers.TransactionRequest,
-			"maxFeePerGas" | "maxPriorityFeePerGas"
-		>,
+		feeOverrides: { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint },
 	): Promise<string> {
 		const trySend = async () => {
-			return send({ nonce: nextNonceRef.value, ...feeOverrides });
+			const hash = await send({
+				nonce: nextNonceRef.value,
+				...feeOverrides,
+			});
+			return hash;
 		};
 
 		try {
-			const tx = await trySend();
+			const hash = await trySend();
 			nextNonceRef.value += 1;
 			if (waitConfs > 0) {
-				const receipt = await tx.wait(waitConfs);
-				return receipt.transactionHash;
+				await this.publicClient.waitForTransactionReceipt({ hash });
 			}
-			return tx.hash;
+			return hash;
 		} catch (e) {
 			const msg = (e as Error).message || "";
 			const code = (e as { code?: number } | undefined)?.code;
@@ -175,13 +213,12 @@ export class PolymarketApprovals {
 
 			// Refresh nonce and retry once
 			nextNonceRef.value = await this.getPendingNonce();
-			const tx = await trySend();
+			const hash = await trySend();
 			nextNonceRef.value += 1;
 			if (waitConfs > 0) {
-				const receipt = await tx.wait(waitConfs);
-				return receipt.transactionHash;
+				await this.publicClient.waitForTransactionReceipt({ hash });
 			}
-			return tx.hash;
+			return hash;
 		}
 	}
 
@@ -205,19 +242,31 @@ export class PolymarketApprovals {
 	async check(): Promise<ApprovalCheck> {
 		const { USDC_ADDRESS, CTF_ADDRESS, EXCHANGE_ADDRESS } = POLYGON_ADDRESSES;
 
-		const usdc = new Contract(USDC_ADDRESS, USDC_ABI, this.signer);
-		const ctf = new Contract(CTF_ADDRESS, CTF_ABI, this.signer);
-
 		const [usdcAllowanceCtf, usdcAllowanceExchange, ctfApprovedForExchange] =
 			await Promise.all([
-				usdc.allowance(this.signer.address, CTF_ADDRESS),
-				usdc.allowance(this.signer.address, EXCHANGE_ADDRESS),
-				ctf.isApprovedForAll(this.signer.address, EXCHANGE_ADDRESS),
+				this.publicClient.readContract({
+					address: USDC_ADDRESS as `0x${string}`,
+					abi: USDC_ABI,
+					functionName: "allowance",
+					args: [this.address, CTF_ADDRESS as `0x${string}`],
+				}) as Promise<bigint>,
+				this.publicClient.readContract({
+					address: USDC_ADDRESS as `0x${string}`,
+					abi: USDC_ABI,
+					functionName: "allowance",
+					args: [this.address, EXCHANGE_ADDRESS as `0x${string}`],
+				}) as Promise<bigint>,
+				this.publicClient.readContract({
+					address: CTF_ADDRESS as `0x${string}`,
+					abi: CTF_ABI,
+					functionName: "isApprovedForAll",
+					args: [this.address, EXCHANGE_ADDRESS as `0x${string}`],
+				}) as Promise<boolean>,
 			]);
 
 		const missing: ApprovalCheck["missing"] = [];
-		if (usdcAllowanceCtf.isZero()) missing.push("USDC_ALLOWANCE_FOR_CTF");
-		if (usdcAllowanceExchange.isZero())
+		if (usdcAllowanceCtf === 0n) missing.push("USDC_ALLOWANCE_FOR_CTF");
+		if (usdcAllowanceExchange === 0n)
 			missing.push("USDC_ALLOWANCE_FOR_EXCHANGE");
 		if (!ctfApprovedForExchange) missing.push("CTF_APPROVAL_FOR_EXCHANGE");
 
@@ -227,7 +276,7 @@ export class PolymarketApprovals {
 			ctfApprovedForExchange,
 			missing,
 			addresses: POLYGON_ADDRESSES,
-			owner: this.signer.address,
+			owner: this.address,
 		};
 	}
 
@@ -256,9 +305,6 @@ export class PolymarketApprovals {
 	}> {
 		const { USDC_ADDRESS, CTF_ADDRESS, EXCHANGE_ADDRESS } = POLYGON_ADDRESSES;
 
-		const usdc = new Contract(USDC_ADDRESS, USDC_ABI, this.signer);
-		const ctf = new Contract(CTF_ADDRESS, CTF_ABI, this.signer);
-
 		// Determine which approvals are missing to avoid redundant transactions
 		const current = await this.check();
 		const missingUsdcForCTF = current.missing.includes(
@@ -285,8 +331,19 @@ export class PolymarketApprovals {
 		let actions = 0;
 		if (selections.approveUsdcForCTF && (opts?.force || missingUsdcForCTF)) {
 			const h = await this.sendWithNonceAndRetry(
-				(overrides) =>
-					usdc.approve(CTF_ADDRESS, constants.MaxUint256, overrides),
+				async (overrides) => {
+					return this.walletClient.writeContract({
+						address: USDC_ADDRESS as `0x${string}`,
+						abi: USDC_ABI,
+						functionName: "approve",
+						args: [CTF_ADDRESS as `0x${string}`, maxUint256],
+						chain: polygon,
+						account: this.address,
+						nonce: overrides.nonce,
+						maxFeePerGas: overrides.maxFeePerGas,
+						maxPriorityFeePerGas: overrides.maxPriorityFeePerGas,
+					});
+				},
 				nextNonceRef,
 				waitConfs,
 				feeOverrides,
@@ -300,8 +357,19 @@ export class PolymarketApprovals {
 			(opts?.force || missingUsdcForExchange)
 		) {
 			const h = await this.sendWithNonceAndRetry(
-				(overrides) =>
-					usdc.approve(EXCHANGE_ADDRESS, constants.MaxUint256, overrides),
+				async (overrides) => {
+					return this.walletClient.writeContract({
+						address: USDC_ADDRESS as `0x${string}`,
+						abi: USDC_ABI,
+						functionName: "approve",
+						args: [EXCHANGE_ADDRESS as `0x${string}`, maxUint256],
+						chain: polygon,
+						account: this.address,
+						nonce: overrides.nonce,
+						maxFeePerGas: overrides.maxFeePerGas,
+						maxPriorityFeePerGas: overrides.maxPriorityFeePerGas,
+					});
+				},
 				nextNonceRef,
 				waitConfs,
 				feeOverrides,
@@ -315,7 +383,19 @@ export class PolymarketApprovals {
 			(opts?.force || missingCtfForExchange)
 		) {
 			const h = await this.sendWithNonceAndRetry(
-				(overrides) => ctf.setApprovalForAll(EXCHANGE_ADDRESS, true, overrides),
+				async (overrides) => {
+					return this.walletClient.writeContract({
+						address: CTF_ADDRESS as `0x${string}`,
+						abi: CTF_ABI,
+						functionName: "setApprovalForAll",
+						args: [EXCHANGE_ADDRESS as `0x${string}`, true],
+						chain: polygon,
+						account: this.address,
+						nonce: overrides.nonce,
+						maxFeePerGas: overrides.maxFeePerGas,
+						maxPriorityFeePerGas: overrides.maxPriorityFeePerGas,
+					});
+				},
 				nextNonceRef,
 				waitConfs,
 				feeOverrides,

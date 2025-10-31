@@ -1,5 +1,5 @@
+import type { OrderBookSummary } from "@dschz/polymarket-clob-client";
 import { GammaSDK, PolymarketSDK } from "@hk/polymarket";
-import type { OrderBookSummary } from "@polymarket/clob-client";
 import { type BaseConfig, getConfig } from "./config.js";
 
 export type PolymarketApiConfig = Partial<BaseConfig>;

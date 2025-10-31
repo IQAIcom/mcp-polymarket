@@ -3,8 +3,8 @@ import type {
 	OpenOrderParams,
 	TradeParams,
 	UserOrder,
-} from "@polymarket/clob-client";
-import { ClobClient, OrderType, Side } from "@polymarket/clob-client";
+} from "@dschz/polymarket-clob-client";
+import { ClobClient, OrderType, Side } from "@dschz/polymarket-clob-client";
 import { providers, Wallet } from "ethers";
 import { PolymarketApprovals } from "./approvals.js";
 import { getConfig } from "./config.js";
