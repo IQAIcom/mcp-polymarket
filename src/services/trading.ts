@@ -9,9 +9,6 @@ import { providers, Wallet } from "ethers";
 import { PolymarketApprovals } from "./approvals.js";
 import { getConfig } from "./config.js";
 
-// Minimal ABIs needed for approvals
-// ABIs moved to approvals service; nothing needed here.
-
 /**
  * Interface for trading configuration
  */
@@ -57,9 +54,6 @@ export class PolymarketTrading {
 			host,
 			cfg.chainId || 137,
 			ethersSigner,
-			undefined,
-			cfg.signatureType,
-			cfg.funderAddress,
 		).createOrDeriveApiKey();
 
 		// Create client with credentials
