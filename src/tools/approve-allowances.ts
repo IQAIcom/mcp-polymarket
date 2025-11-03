@@ -60,7 +60,7 @@ export const approveAllowancesTool = {
 					alreadyApproved: true,
 					message: "All required approvals are already in place.",
 					status: before,
-					rationale: PolymarketApprovals.rationale(true),
+					rationale: PolymarketApprovals.rationale(),
 				},
 				null,
 				2,
@@ -72,7 +72,6 @@ export const approveAllowancesTool = {
 			approveUsdcForExchange: args.approveUsdcForExchange,
 			approveCtfForExchange: args.approveCtfForExchange,
 			waitForConfirmations: args.waitForConfirmations ?? 0,
-			minPriorityFeeGwei: args.minPriorityFeeGwei,
 			force: args.force ?? false,
 		});
 
@@ -84,7 +83,7 @@ export const approveAllowancesTool = {
 				txHashes: result.txHashes,
 				message: result.message,
 				status: after,
-				rationale: PolymarketApprovals.rationale(true),
+				rationale: PolymarketApprovals.rationale(),
 			},
 			null,
 			2,

@@ -1,7 +1,14 @@
-import { Contract, constants, providers, utils, Wallet } from "ethers";
-import { getConfig, POLYGON_ADDRESSES } from "./config.js";
+import {
+	type BigNumber,
+	Contract,
+	constants,
+	providers,
+	utils,
+	Wallet,
+} from "ethers";
+import { getConfig, getContractConfig } from "./config.js";
 
-// Minimal ABIs needed for approvals
+// Minimal ABIs needed for approvals (from Polymarket SDK)
 const USDC_ABI = [
 	"function allowance(address owner, address spender) view returns (uint256)",
 	"function approve(address spender, uint256 amount) returns (bool)",
@@ -12,30 +19,37 @@ const CTF_ABI = [
 	"function setApprovalForAll(address operator, bool approved)",
 ];
 
+/**
+ * Get USDC contract instance (following Polymarket SDK pattern)
+ */
+function getUsdcContract(wallet: Wallet): Contract {
+	const contractConfig = getContractConfig(137); // Polygon mainnet
+	return new Contract(contractConfig.collateral, USDC_ABI, wallet);
+}
+
+/**
+ * Get Conditional Tokens Framework (CTF) contract instance (following Polymarket SDK pattern)
+ */
+function getCtfContract(wallet: Wallet): Contract {
+	const contractConfig = getContractConfig(137); // Polygon mainnet
+	return new Contract(contractConfig.conditionalTokens, CTF_ABI, wallet);
+}
+
 export type ApprovalCheck = {
 	usdcAllowanceForCTF: string;
 	usdcAllowanceForExchange: string;
 	ctfApprovedForExchange: boolean;
-	// Add NegRisk allowances
-	usdcAllowanceForNegRiskExchange: string;
-	usdcAllowanceForNegRiskAdapter: string;
-	ctfApprovedForNegRiskExchange: boolean;
-	ctfApprovedForNegRiskAdapter: boolean;
 	missing: Array<
 		| "USDC_ALLOWANCE_FOR_CTF"
 		| "USDC_ALLOWANCE_FOR_EXCHANGE"
 		| "CTF_APPROVAL_FOR_EXCHANGE"
-		| "USDC_ALLOWANCE_FOR_NEGRISK_EXCHANGE"
-		| "USDC_ALLOWANCE_FOR_NEGRISK_ADAPTER"
-		| "CTF_APPROVAL_FOR_NEGRISK_EXCHANGE"
-		| "CTF_APPROVAL_FOR_NEGRISK_ADAPTER"
 	>;
-	addresses: typeof POLYGON_ADDRESSES & {
-		NEGRISK_EXCHANGE: string;
-		NEGRISK_ADAPTER: string;
+	addresses: {
+		exchange: string;
+		collateral: string;
+		conditionalTokens: string;
 	};
 	owner: string;
-	isProxyWallet: boolean;
 };
 
 /**
@@ -61,28 +75,19 @@ export class ApprovalRequiredError extends Error {
 	constructor(details: ApprovalCheck) {
 		const msgLines = [
 			"Token approvals are required before proceeding.",
-			PolymarketApprovals.rationale(details.isProxyWallet),
-			details.isProxyWallet
-				? "⚠️  You are using a proxy wallet (Gnosis Safe). Approvals must be set through the Polymarket UI or Gnosis Safe interface."
-				: "Use the 'approve_allowances' tool to grant approvals, then retry your action.",
+			PolymarketApprovals.rationale(),
+			"Use the 'approve_allowances' tool to grant approvals, then retry your action.",
 		];
 		super(msgLines.join("\n\n"));
 		this.name = "ApprovalRequiredError";
 		this.details = details;
-		this.hint = PolymarketApprovals.rationale(details.isProxyWallet);
-		this.nextStep = details.isProxyWallet
-			? {
-					tool: "polymarket_ui",
-					name: "Set Approvals via Polymarket UI",
-					description:
-						"Visit Polymarket website to set allowances for your proxy wallet (cannot be done programmatically for Gnosis Safe).",
-				}
-			: {
-					tool: "approve_allowances",
-					name: "Approve Allowances",
-					description:
-						"Grant USDC and CTF approvals required for Polymarket trading (revocable at any time).",
-				};
+		this.hint = PolymarketApprovals.rationale();
+		this.nextStep = {
+			tool: "approve_allowances",
+			name: "Approve Allowances",
+			description:
+				"Grant USDC and CTF approvals required for Polymarket trading (revocable at any time).",
+		};
 	}
 
 	toJSON() {
@@ -102,34 +107,9 @@ export class ApprovalRequiredError extends Error {
  */
 export class PolymarketApprovals {
 	private signer: Wallet;
-	private funderAddress?: string;
 
-	constructor(signer?: Wallet, funderAddress?: string) {
+	constructor(signer?: Wallet) {
 		this.signer = signer ?? getSignerFromEnv();
-		this.funderAddress = funderAddress ?? getConfig().funderAddress;
-	}
-
-	/** Ensure we have a Provider */
-	private getProvider(): providers.Provider {
-		const provider = this.signer.provider;
-		if (!provider) throw new Error("Signer provider is not available");
-		return provider;
-	}
-
-	/**
-	 * Get the address that actually holds funds and needs approvals.
-	 * For proxy wallets (Gnosis Safe), this is the funder address.
-	 * For EOA wallets, this is the signer address.
-	 */
-	private getOwnerAddress(): string {
-		return this.funderAddress ?? this.signer.address;
-	}
-
-	/**
-	 * Check if using a proxy wallet
-	 */
-	private isProxyWallet(): boolean {
-		return !!this.funderAddress;
 	}
 
 	/** Get the next pending nonce for this signer */
@@ -138,48 +118,19 @@ export class PolymarketApprovals {
 	}
 
 	/**
-	 * Build EIP-1559 fee overrides with a safe floor on Polygon.
-	 * Applies a +20% bump over suggested values and enforces a minimum priority fee.
+	 * Build gas overrides for Polygon transactions.
+	 * Uses fixed gas settings similar to the Polymarket SDK example.
 	 */
-	private async buildFeeOverrides(minPriorityFeeGwei?: number): Promise<{
-		maxFeePerGas: providers.TransactionRequest["maxFeePerGas"];
-		maxPriorityFeePerGas: providers.TransactionRequest["maxPriorityFeePerGas"];
-	}> {
-		const provider = this.getProvider();
-		const feeData = await provider.getFeeData();
-
-		const envMinPriGwei = Number(process.env.POLYMARKET_MIN_PRIORITY_FEE_GWEI);
-		const minPriGwei = Number.isFinite(envMinPriGwei)
-			? envMinPriGwei
-			: (minPriorityFeeGwei ?? 30); // default 30 gwei
-
-		const floorPri = utils.parseUnits(String(minPriGwei), "gwei");
-
-		const suggestedPri = feeData.maxPriorityFeePerGas
-			? feeData.maxPriorityFeePerGas
-					.mul(12)
-					.div(10) // +20%
-			: floorPri;
-
-		const maxPriorityFeePerGas = suggestedPri.gte(floorPri)
-			? suggestedPri
-			: floorPri;
-
-		const suggestedMaxFee = feeData.maxFeePerGas
-			? feeData.maxFeePerGas
-					.mul(12)
-					.div(10) // +20%
-			: undefined;
-
-		const minMaxFee = maxPriorityFeePerGas.mul(2);
-
-		const maxFeePerGas = suggestedMaxFee
-			? suggestedMaxFee.gte(minMaxFee)
-				? suggestedMaxFee
-				: minMaxFee
-			: minMaxFee;
-
-		return { maxFeePerGas, maxPriorityFeePerGas };
+	private buildFeeOverrides(): {
+		gasPrice: providers.TransactionRequest["gasPrice"];
+		gasLimit: providers.TransactionRequest["gasLimit"];
+	} {
+		// Following the SDK example pattern with 100 gwei gas price
+		// and 200k gas limit for approval transactions
+		return {
+			gasPrice: utils.parseUnits("100", "gwei"), // 100 gwei = 100_000_000_000 wei
+			gasLimit: 200_000,
+		};
 	}
 
 	/**
@@ -192,10 +143,7 @@ export class PolymarketApprovals {
 		) => Promise<providers.TransactionResponse>,
 		nextNonceRef: { value: number },
 		waitConfs: number,
-		feeOverrides: Pick<
-			providers.TransactionRequest,
-			"maxFeePerGas" | "maxPriorityFeePerGas"
-		>,
+		feeOverrides: Pick<providers.TransactionRequest, "gasPrice" | "gasLimit">,
 	): Promise<string> {
 		const trySend = async () => {
 			return send({ nonce: nextNonceRef.value, ...feeOverrides });
@@ -234,32 +182,18 @@ export class PolymarketApprovals {
 		}
 	}
 
-	static rationale(isProxyWallet: boolean): string {
-		const a = POLYGON_ADDRESSES;
+	static rationale(): string {
+		const contractConfig = getContractConfig(137); // Polygon mainnet
 
-		const baseRationale = [
+		const rationale = [
 			"Trading on Polymarket requires granting limited permissions so the exchange can settle orders:",
 			"- USDC allowances let the Conditional Tokens Framework (CTF) and the Exchange move your USDC to mint/redeem and settle trades.",
 			"- CTF setApprovalForAll lets the Exchange move your position tokens during settlement.",
+			`Contracts: USDC=${contractConfig.collateral}, CTF=${contractConfig.conditionalTokens}, Exchange=${contractConfig.exchange}`,
+			"These are standard ERC20/ERC1155 approvals, set to MaxUint for fewer prompts, and can be revoked in your wallet at any time.",
 		];
 
-		if (isProxyWallet) {
-			baseRationale.push(
-				"",
-				"⚠️  PROXY WALLET DETECTED: You are using a Gnosis Safe proxy wallet.",
-				"Approvals for proxy wallets CANNOT be set programmatically through this tool.",
-				"You must set approvals through:",
-				"  1. The Polymarket website (recommended - happens automatically on first deposit)",
-				"  2. The Gnosis Safe interface directly",
-			);
-		} else {
-			baseRationale.push(
-				`Contracts: USDC=${a.USDC_ADDRESS}, CTF=${a.CTF_ADDRESS}, Exchange=${a.EXCHANGE_ADDRESS}`,
-				"These are standard ERC20/ERC1155 approvals, set to MaxUint for fewer prompts, and can be revoked in your wallet at any time.",
-			);
-		}
-
-		return baseRationale.join("\n");
+		return rationale.join("\n");
 	}
 
 	/** Format an approval error into a response object. */
@@ -268,147 +202,87 @@ export class PolymarketApprovals {
 	}
 
 	/**
-	 * Get contract addresses for the current chain
+	 * Get contract addresses for Polygon mainnet
 	 */
 	private getContractAddresses() {
-		const cfg = getConfig();
-		const chainId = cfg.chainId ?? 137;
-
-		// Import getContractConfig from the SDK
-		const { getContractConfig } = require("./config.js");
-		const contractConfig = getContractConfig(chainId);
-
-		return {
-			...POLYGON_ADDRESSES,
-			NEGRISK_EXCHANGE: contractConfig.negRiskExchange,
-			NEGRISK_ADAPTER: contractConfig.negRiskAdapter,
-		};
+		return getContractConfig(137); // Polygon mainnet
 	}
 
-	/** Check current approval state for the owner address (proxy or EOA) */
+	/** Check current approval state for the signer's wallet address */
 	async check(): Promise<ApprovalCheck> {
-		const addresses = this.getContractAddresses();
-		const { USDC_ADDRESS, CTF_ADDRESS, EXCHANGE_ADDRESS } = POLYGON_ADDRESSES;
+		const contractConfig = this.getContractAddresses();
 
-		const usdc = new Contract(USDC_ADDRESS, USDC_ABI, this.signer);
-		const ctf = new Contract(CTF_ADDRESS, CTF_ABI, this.signer);
+		const usdc = getUsdcContract(this.signer);
+		const ctf = getCtfContract(this.signer);
 
-		const ownerAddress = this.getOwnerAddress();
-		const isProxy = this.isProxyWallet();
+		const walletAddress = this.signer.address;
 
-		// Check both normal and NegRisk allowances
-		const [
-			usdcAllowanceCtf,
-			usdcAllowanceExchange,
-			ctfApprovedForExchange,
-			usdcAllowanceNegRiskExchange,
-			usdcAllowanceNegRiskAdapter,
-			ctfApprovedForNegRiskExchange,
-			ctfApprovedForNegRiskAdapter,
-		] = await Promise.all([
-			usdc.allowance(ownerAddress, CTF_ADDRESS),
-			usdc.allowance(ownerAddress, EXCHANGE_ADDRESS),
-			ctf.isApprovedForAll(ownerAddress, EXCHANGE_ADDRESS),
-			usdc.allowance(ownerAddress, addresses.NEGRISK_EXCHANGE),
-			usdc.allowance(ownerAddress, addresses.NEGRISK_ADAPTER),
-			ctf.isApprovedForAll(ownerAddress, addresses.NEGRISK_EXCHANGE),
-			ctf.isApprovedForAll(ownerAddress, addresses.NEGRISK_ADAPTER),
-		]);
+		// Check allowances as per Polymarket SDK example
+		const [usdcAllowanceCtf, usdcAllowanceExchange, ctfApprovedForExchange] =
+			await Promise.all([
+				usdc.allowance(
+					walletAddress,
+					contractConfig.conditionalTokens,
+				) as Promise<BigNumber>,
+				usdc.allowance(
+					walletAddress,
+					contractConfig.exchange,
+				) as Promise<BigNumber>,
+				ctf.isApprovedForAll(
+					walletAddress,
+					contractConfig.exchange,
+				) as Promise<boolean>,
+			]);
 
 		const missing: ApprovalCheck["missing"] = [];
 
-		// Check normal market approvals
-		if (usdcAllowanceCtf.isZero()) missing.push("USDC_ALLOWANCE_FOR_CTF");
-		if (usdcAllowanceExchange.isZero())
+		// Check if approvals are set (following SDK example - check if > 0)
+		if (!usdcAllowanceCtf.gt(constants.Zero))
+			missing.push("USDC_ALLOWANCE_FOR_CTF");
+		if (!usdcAllowanceExchange.gt(constants.Zero))
 			missing.push("USDC_ALLOWANCE_FOR_EXCHANGE");
 		if (!ctfApprovedForExchange) missing.push("CTF_APPROVAL_FOR_EXCHANGE");
-
-		// Check NegRisk market approvals
-		if (usdcAllowanceNegRiskExchange.isZero())
-			missing.push("USDC_ALLOWANCE_FOR_NEGRISK_EXCHANGE");
-		if (usdcAllowanceNegRiskAdapter.isZero())
-			missing.push("USDC_ALLOWANCE_FOR_NEGRISK_ADAPTER");
-		if (!ctfApprovedForNegRiskExchange)
-			missing.push("CTF_APPROVAL_FOR_NEGRISK_EXCHANGE");
-		if (!ctfApprovedForNegRiskAdapter)
-			missing.push("CTF_APPROVAL_FOR_NEGRISK_ADAPTER");
 
 		return {
 			usdcAllowanceForCTF: usdcAllowanceCtf.toString(),
 			usdcAllowanceForExchange: usdcAllowanceExchange.toString(),
 			ctfApprovedForExchange,
-			usdcAllowanceForNegRiskExchange: usdcAllowanceNegRiskExchange.toString(),
-			usdcAllowanceForNegRiskAdapter: usdcAllowanceNegRiskAdapter.toString(),
-			ctfApprovedForNegRiskExchange,
-			ctfApprovedForNegRiskAdapter,
 			missing,
-			addresses,
-			owner: ownerAddress,
-			isProxyWallet: isProxy,
+			addresses: contractConfig,
+			owner: walletAddress,
 		};
 	}
 
 	/**
 	 * Throw a structured error if approvals are missing.
-	 * NOTE: For proxy wallets (Gnosis Safe), this will throw an error directing
-	 * users to set approvals through the Polymarket UI, as they cannot be set
-	 * programmatically.
 	 */
 	async assertApproved(): Promise<void> {
 		const status = await this.check();
 
 		if (status.missing.length > 0) {
-			// If using proxy wallet, provide special guidance
-			if (status.isProxyWallet) {
-				console.warn("⚠️  Proxy wallet detected with missing approvals.");
-				console.warn("   Owner:", status.owner);
-				console.warn("   Missing approvals:", status.missing);
-				console.warn(
-					"   Approvals for Gnosis Safe proxies must be set via Polymarket UI.",
-				);
-
-				// Still throw, but with proxy-specific guidance
-				throw new ApprovalRequiredError(status);
-			}
-
 			throw new ApprovalRequiredError(status);
 		}
 	}
 
 	/**
 	 * Execute approvals. By default approves all required allowances with MaxUint256.
-	 * NOTE: This only works for EOA wallets. For proxy wallets (Gnosis Safe),
-	 * approvals must be set through the Polymarket UI or Gnosis Safe interface.
+	 * Follows the Polymarket SDK example pattern for setting approvals.
 	 */
 	async approveAll(opts?: {
 		approveUsdcForCTF?: boolean;
 		approveUsdcForExchange?: boolean;
 		approveCtfForExchange?: boolean;
-		approveUsdcForNegRiskExchange?: boolean;
-		approveUsdcForNegRiskAdapter?: boolean;
-		approveCtfForNegRiskExchange?: boolean;
-		approveCtfForNegRiskAdapter?: boolean;
 		waitForConfirmations?: number;
-		minPriorityFeeGwei?: number;
 		force?: boolean;
 	}): Promise<{
 		txHashes: string[];
 		message: string;
 		waitedConfirmations: number;
 	}> {
-		// Check if using proxy wallet
-		if (this.isProxyWallet()) {
-			throw new Error(
-				"Cannot set approvals programmatically for proxy wallets (Gnosis Safe). " +
-					"Please set approvals through the Polymarket website or Gnosis Safe interface.",
-			);
-		}
+		const contractConfig = this.getContractAddresses();
 
-		const addresses = this.getContractAddresses();
-		const { USDC_ADDRESS, CTF_ADDRESS, EXCHANGE_ADDRESS } = POLYGON_ADDRESSES;
-
-		const usdc = new Contract(USDC_ADDRESS, USDC_ABI, this.signer);
-		const ctf = new Contract(CTF_ADDRESS, CTF_ABI, this.signer);
+		const usdc = getUsdcContract(this.signer);
+		const ctf = getCtfContract(this.signer);
 
 		// Determine which approvals are missing
 		const current = await this.check();
@@ -417,137 +291,69 @@ export class PolymarketApprovals {
 			approveUsdcForCTF: opts?.approveUsdcForCTF ?? true,
 			approveUsdcForExchange: opts?.approveUsdcForExchange ?? true,
 			approveCtfForExchange: opts?.approveCtfForExchange ?? true,
-			approveUsdcForNegRiskExchange:
-				opts?.approveUsdcForNegRiskExchange ?? true,
-			approveUsdcForNegRiskAdapter: opts?.approveUsdcForNegRiskAdapter ?? true,
-			approveCtfForNegRiskExchange: opts?.approveCtfForNegRiskExchange ?? true,
-			approveCtfForNegRiskAdapter: opts?.approveCtfForNegRiskAdapter ?? true,
 		};
 
 		const txHashes: string[] = [];
 		const waitConfs = Math.max(0, opts?.waitForConfirmations ?? 0);
-		const feeOverrides = await this.buildFeeOverrides(opts?.minPriorityFeeGwei);
+		const feeOverrides = this.buildFeeOverrides();
 		const nextNonceRef = { value: await this.getPendingNonce() };
 
 		let actions = 0;
 
-		// Normal market approvals
+		// Set USDC allowance for CTF (Conditional Tokens Framework)
+		// This allows CTF to move USDC for minting/redeeming positions
 		if (
 			selections.approveUsdcForCTF &&
 			(opts?.force || current.missing.includes("USDC_ALLOWANCE_FOR_CTF"))
 		) {
 			const h = await this.sendWithNonceAndRetry(
 				(overrides) =>
-					usdc.approve(CTF_ADDRESS, constants.MaxUint256, overrides),
+					usdc.approve(contractConfig.conditionalTokens, constants.MaxUint256, overrides),
 				nextNonceRef,
 				waitConfs,
 				feeOverrides,
 			);
 			txHashes.push(h);
 			actions++;
+			console.log(`Setting USDC allowance for CTF: ${h}`);
 		}
 
+		// Set USDC allowance for Exchange
+		// This allows the Exchange to move USDC for order settlement
 		if (
 			selections.approveUsdcForExchange &&
 			(opts?.force || current.missing.includes("USDC_ALLOWANCE_FOR_EXCHANGE"))
 		) {
 			const h = await this.sendWithNonceAndRetry(
 				(overrides) =>
-					usdc.approve(EXCHANGE_ADDRESS, constants.MaxUint256, overrides),
+					usdc.approve(contractConfig.exchange, constants.MaxUint256, overrides),
 				nextNonceRef,
 				waitConfs,
 				feeOverrides,
 			);
 			txHashes.push(h);
 			actions++;
+			console.log(`Setting USDC allowance for Exchange: ${h}`);
 		}
 
+		// Set CTF approval for Exchange
+		// This allows the Exchange to move position tokens (CTF ERC1155 tokens)
 		if (
 			selections.approveCtfForExchange &&
 			(opts?.force || current.missing.includes("CTF_APPROVAL_FOR_EXCHANGE"))
 		) {
 			const h = await this.sendWithNonceAndRetry(
-				(overrides) => ctf.setApprovalForAll(EXCHANGE_ADDRESS, true, overrides),
+				(overrides) => ctf.setApprovalForAll(contractConfig.exchange, true, overrides),
 				nextNonceRef,
 				waitConfs,
 				feeOverrides,
 			);
 			txHashes.push(h);
 			actions++;
+			console.log(`Setting Conditional Tokens allowance for Exchange: ${h}`);
 		}
 
-		// NegRisk market approvals
-		if (
-			selections.approveUsdcForNegRiskExchange &&
-			(opts?.force ||
-				current.missing.includes("USDC_ALLOWANCE_FOR_NEGRISK_EXCHANGE"))
-		) {
-			const h = await this.sendWithNonceAndRetry(
-				(overrides) =>
-					usdc.approve(
-						addresses.NEGRISK_EXCHANGE,
-						constants.MaxUint256,
-						overrides,
-					),
-				nextNonceRef,
-				waitConfs,
-				feeOverrides,
-			);
-			txHashes.push(h);
-			actions++;
-		}
-
-		if (
-			selections.approveUsdcForNegRiskAdapter &&
-			(opts?.force ||
-				current.missing.includes("USDC_ALLOWANCE_FOR_NEGRISK_ADAPTER"))
-		) {
-			const h = await this.sendWithNonceAndRetry(
-				(overrides) =>
-					usdc.approve(
-						addresses.NEGRISK_ADAPTER,
-						constants.MaxUint256,
-						overrides,
-					),
-				nextNonceRef,
-				waitConfs,
-				feeOverrides,
-			);
-			txHashes.push(h);
-			actions++;
-		}
-
-		if (
-			selections.approveCtfForNegRiskExchange &&
-			(opts?.force ||
-				current.missing.includes("CTF_APPROVAL_FOR_NEGRISK_EXCHANGE"))
-		) {
-			const h = await this.sendWithNonceAndRetry(
-				(overrides) =>
-					ctf.setApprovalForAll(addresses.NEGRISK_EXCHANGE, true, overrides),
-				nextNonceRef,
-				waitConfs,
-				feeOverrides,
-			);
-			txHashes.push(h);
-			actions++;
-		}
-
-		if (
-			selections.approveCtfForNegRiskAdapter &&
-			(opts?.force ||
-				current.missing.includes("CTF_APPROVAL_FOR_NEGRISK_ADAPTER"))
-		) {
-			const h = await this.sendWithNonceAndRetry(
-				(overrides) =>
-					ctf.setApprovalForAll(addresses.NEGRISK_ADAPTER, true, overrides),
-				nextNonceRef,
-				waitConfs,
-				feeOverrides,
-			);
-			txHashes.push(h);
-			actions++;
-		}
+		console.log("Allowances set");
 
 		return {
 			txHashes,
