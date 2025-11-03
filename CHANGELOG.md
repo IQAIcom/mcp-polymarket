@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.12
+
+### Patch Changes
+
+- aee641d: Add close false for get active markets
+- aabc860: Improves the approvals service code
+
 ## 0.0.11
 
 ### Patch Changes
