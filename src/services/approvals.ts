@@ -37,10 +37,18 @@ export type ApprovalCheck = {
 	usdcAllowanceForCTF: string;
 	usdcAllowanceForExchange: string;
 	ctfApprovedForExchange: boolean;
+	usdcAllowanceForNegRiskExchange: string;
+	usdcAllowanceForNegRiskAdapter: string;
+	ctfApprovedForNegRiskExchange: boolean;
+	ctfApprovedForNegRiskAdapter: boolean;
 	missing: Array<
 		| "USDC_ALLOWANCE_FOR_CTF"
 		| "USDC_ALLOWANCE_FOR_EXCHANGE"
 		| "CTF_APPROVAL_FOR_EXCHANGE"
+		| "USDC_ALLOWANCE_FOR_NEG_RISK_EXCHANGE"
+		| "USDC_ALLOWANCE_FOR_NEG_RISK_ADAPTER"
+		| "CTF_APPROVAL_FOR_NEG_RISK_EXCHANGE"
+		| "CTF_APPROVAL_FOR_NEG_RISK_ADAPTER"
 	>;
 	addresses: typeof POLYGON_ADDRESSES;
 	owner: string;
@@ -181,9 +189,10 @@ export class PolymarketApprovals {
 
 		const rationale = [
 			"Trading on Polymarket requires granting limited permissions so the exchange can settle orders:",
-			"- USDC allowances let the Conditional Tokens Framework (CTF) and the Exchange move your USDC to mint/redeem and settle trades.",
-			"- CTF setApprovalForAll lets the Exchange move your position tokens during settlement.",
+			"- USDC allowances let the Conditional Tokens Framework (CTF), Exchange, and NegRisk contracts move your USDC to mint/redeem and settle trades.",
+			"- CTF setApprovalForAll lets the Exchange and NegRisk contracts move your position tokens during settlement.",
 			`Contracts: USDC=${a.USDC_ADDRESS}, CTF=${a.CTF_ADDRESS}, Exchange=${a.EXCHANGE_ADDRESS}`,
+			`NegRisk: Exchange=${a.NEG_RISK_EXCHANGE_ADDRESS}, Adapter=${a.NEG_RISK_ADAPTER_ADDRESS}`,
 			"These are standard ERC20/ERC1155 approvals, set to MaxUint for fewer prompts, and can be revoked in your wallet at any time.",
 		];
 
@@ -205,23 +214,48 @@ export class PolymarketApprovals {
 	/** Check current approval state for the signer's wallet address */
 	async check(): Promise<ApprovalCheck> {
 		const addresses = this.getContractAddresses();
-		const { CTF_ADDRESS, EXCHANGE_ADDRESS } = addresses;
+		const {
+			CTF_ADDRESS,
+			EXCHANGE_ADDRESS,
+			NEG_RISK_EXCHANGE_ADDRESS,
+			NEG_RISK_ADAPTER_ADDRESS,
+		} = addresses;
 
 		const usdc = getUsdcContract(this.signer);
 		const ctf = getCtfContract(this.signer);
 
 		const walletAddress = this.signer.address;
 
-		// Check allowances as per Polymarket SDK example
-		const [usdcAllowanceCtf, usdcAllowanceExchange, ctfApprovedForExchange] =
-			await Promise.all([
-				usdc.allowance(walletAddress, CTF_ADDRESS) as Promise<BigNumber>,
-				usdc.allowance(walletAddress, EXCHANGE_ADDRESS) as Promise<BigNumber>,
-				ctf.isApprovedForAll(
-					walletAddress,
-					EXCHANGE_ADDRESS,
-				) as Promise<boolean>,
-			]);
+		// Check allowances for both regular and NegRisk markets
+		const [
+			usdcAllowanceCtf,
+			usdcAllowanceExchange,
+			ctfApprovedForExchange,
+			usdcAllowanceNegRiskExchange,
+			usdcAllowanceNegRiskAdapter,
+			ctfApprovedForNegRiskExchange,
+			ctfApprovedForNegRiskAdapter,
+		] = await Promise.all([
+			usdc.allowance(walletAddress, CTF_ADDRESS) as Promise<BigNumber>,
+			usdc.allowance(walletAddress, EXCHANGE_ADDRESS) as Promise<BigNumber>,
+			ctf.isApprovedForAll(walletAddress, EXCHANGE_ADDRESS) as Promise<boolean>,
+			usdc.allowance(
+				walletAddress,
+				NEG_RISK_EXCHANGE_ADDRESS,
+			) as Promise<BigNumber>,
+			usdc.allowance(
+				walletAddress,
+				NEG_RISK_ADAPTER_ADDRESS,
+			) as Promise<BigNumber>,
+			ctf.isApprovedForAll(
+				walletAddress,
+				NEG_RISK_EXCHANGE_ADDRESS,
+			) as Promise<boolean>,
+			ctf.isApprovedForAll(
+				walletAddress,
+				NEG_RISK_ADAPTER_ADDRESS,
+			) as Promise<boolean>,
+		]);
 
 		const missing: ApprovalCheck["missing"] = [];
 
@@ -231,11 +265,23 @@ export class PolymarketApprovals {
 		if (!usdcAllowanceExchange.gt(constants.Zero))
 			missing.push("USDC_ALLOWANCE_FOR_EXCHANGE");
 		if (!ctfApprovedForExchange) missing.push("CTF_APPROVAL_FOR_EXCHANGE");
+		if (!usdcAllowanceNegRiskExchange.gt(constants.Zero))
+			missing.push("USDC_ALLOWANCE_FOR_NEG_RISK_EXCHANGE");
+		if (!usdcAllowanceNegRiskAdapter.gt(constants.Zero))
+			missing.push("USDC_ALLOWANCE_FOR_NEG_RISK_ADAPTER");
+		if (!ctfApprovedForNegRiskExchange)
+			missing.push("CTF_APPROVAL_FOR_NEG_RISK_EXCHANGE");
+		if (!ctfApprovedForNegRiskAdapter)
+			missing.push("CTF_APPROVAL_FOR_NEG_RISK_ADAPTER");
 
 		return {
 			usdcAllowanceForCTF: usdcAllowanceCtf.toString(),
 			usdcAllowanceForExchange: usdcAllowanceExchange.toString(),
 			ctfApprovedForExchange,
+			usdcAllowanceForNegRiskExchange: usdcAllowanceNegRiskExchange.toString(),
+			usdcAllowanceForNegRiskAdapter: usdcAllowanceNegRiskAdapter.toString(),
+			ctfApprovedForNegRiskExchange,
+			ctfApprovedForNegRiskAdapter,
 			missing,
 			addresses,
 			owner: walletAddress,
@@ -261,6 +307,10 @@ export class PolymarketApprovals {
 		approveUsdcForCTF?: boolean;
 		approveUsdcForExchange?: boolean;
 		approveCtfForExchange?: boolean;
+		approveUsdcForNegRiskExchange?: boolean;
+		approveUsdcForNegRiskAdapter?: boolean;
+		approveCtfForNegRiskExchange?: boolean;
+		approveCtfForNegRiskAdapter?: boolean;
 		waitForConfirmations?: number;
 		force?: boolean;
 	}): Promise<{
@@ -269,7 +319,12 @@ export class PolymarketApprovals {
 		waitedConfirmations: number;
 	}> {
 		const addresses = this.getContractAddresses();
-		const { CTF_ADDRESS, EXCHANGE_ADDRESS } = addresses;
+		const {
+			CTF_ADDRESS,
+			EXCHANGE_ADDRESS,
+			NEG_RISK_EXCHANGE_ADDRESS,
+			NEG_RISK_ADAPTER_ADDRESS,
+		} = addresses;
 
 		const usdc = getUsdcContract(this.signer);
 		const ctf = getCtfContract(this.signer);
@@ -281,6 +336,11 @@ export class PolymarketApprovals {
 			approveUsdcForCTF: opts?.approveUsdcForCTF ?? true,
 			approveUsdcForExchange: opts?.approveUsdcForExchange ?? true,
 			approveCtfForExchange: opts?.approveCtfForExchange ?? true,
+			approveUsdcForNegRiskExchange:
+				opts?.approveUsdcForNegRiskExchange ?? true,
+			approveUsdcForNegRiskAdapter: opts?.approveUsdcForNegRiskAdapter ?? true,
+			approveCtfForNegRiskExchange: opts?.approveCtfForNegRiskExchange ?? true,
+			approveCtfForNegRiskAdapter: opts?.approveCtfForNegRiskAdapter ?? true,
 		};
 
 		const txHashes: string[] = [];
@@ -341,6 +401,90 @@ export class PolymarketApprovals {
 			txHashes.push(h);
 			actions++;
 			console.log(`Setting Conditional Tokens allowance for Exchange: ${h}`);
+		}
+
+		// Set USDC allowance for NegRisk Exchange
+		// Required for trading on negative risk markets
+		if (
+			selections.approveUsdcForNegRiskExchange &&
+			(opts?.force ||
+				current.missing.includes("USDC_ALLOWANCE_FOR_NEG_RISK_EXCHANGE"))
+		) {
+			const h = await this.sendWithNonceAndRetry(
+				(overrides) =>
+					usdc.approve(
+						NEG_RISK_EXCHANGE_ADDRESS,
+						constants.MaxUint256,
+						overrides,
+					),
+				nextNonceRef,
+				waitConfs,
+				feeOverrides,
+			);
+			txHashes.push(h);
+			actions++;
+			console.log(`Setting USDC allowance for NegRisk Exchange: ${h}`);
+		}
+
+		// Set USDC allowance for NegRisk Adapter
+		// Required for trading on negative risk markets
+		if (
+			selections.approveUsdcForNegRiskAdapter &&
+			(opts?.force ||
+				current.missing.includes("USDC_ALLOWANCE_FOR_NEG_RISK_ADAPTER"))
+		) {
+			const h = await this.sendWithNonceAndRetry(
+				(overrides) =>
+					usdc.approve(
+						NEG_RISK_ADAPTER_ADDRESS,
+						constants.MaxUint256,
+						overrides,
+					),
+				nextNonceRef,
+				waitConfs,
+				feeOverrides,
+			);
+			txHashes.push(h);
+			actions++;
+			console.log(`Setting USDC allowance for NegRisk Adapter: ${h}`);
+		}
+
+		// Set CTF approval for NegRisk Exchange
+		// Required for trading on negative risk markets
+		if (
+			selections.approveCtfForNegRiskExchange &&
+			(opts?.force ||
+				current.missing.includes("CTF_APPROVAL_FOR_NEG_RISK_EXCHANGE"))
+		) {
+			const h = await this.sendWithNonceAndRetry(
+				(overrides) =>
+					ctf.setApprovalForAll(NEG_RISK_EXCHANGE_ADDRESS, true, overrides),
+				nextNonceRef,
+				waitConfs,
+				feeOverrides,
+			);
+			txHashes.push(h);
+			actions++;
+			console.log(`Setting CTF allowance for NegRisk Exchange: ${h}`);
+		}
+
+		// Set CTF approval for NegRisk Adapter
+		// Required for trading on negative risk markets
+		if (
+			selections.approveCtfForNegRiskAdapter &&
+			(opts?.force ||
+				current.missing.includes("CTF_APPROVAL_FOR_NEG_RISK_ADAPTER"))
+		) {
+			const h = await this.sendWithNonceAndRetry(
+				(overrides) =>
+					ctf.setApprovalForAll(NEG_RISK_ADAPTER_ADDRESS, true, overrides),
+				nextNonceRef,
+				waitConfs,
+				feeOverrides,
+			);
+			txHashes.push(h);
+			actions++;
+			console.log(`Setting CTF allowance for NegRisk Adapter: ${h}`);
 		}
 
 		console.log("Allowances set");
