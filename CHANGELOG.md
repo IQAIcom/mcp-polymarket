@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.10
+
+### Patch Changes
+
+- 859db6c: improve tool descriptions
+
 ## 0.0.9
 
 ### Patch Changes
