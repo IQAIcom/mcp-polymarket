@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.11
+
+### Patch Changes
+
+- 2829873: adds approval code for negrisk
+
 ## 0.0.10
 
 ### Patch Changes
