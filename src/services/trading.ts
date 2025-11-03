@@ -1,7 +1,9 @@
 import type {
 	BalanceAllowanceParams,
 	OpenOrderParams,
+	TickSize,
 	TradeParams,
+	UserMarketOrder,
 	UserOrder,
 } from "@polymarket/clob-client";
 import { ClobClient, OrderType, Side } from "@polymarket/clob-client";
@@ -9,9 +11,7 @@ import { providers, Wallet } from "ethers";
 import { PolymarketApprovals } from "./approvals.js";
 import { getConfig } from "./config.js";
 
-/**
- * Interface for trading configuration
- */
+/** * Interface for trading configuration */
 export interface TradingConfig {
 	privateKey: string;
 	chainId?: number;
@@ -22,20 +22,51 @@ export interface TradingConfig {
 }
 
 /**
- * Class to handle Polymarket trading operations
+ * Cache for market parameters to avoid repeated API calls
  */
+interface MarketParams {
+	tickSize: string;
+	negRisk: boolean;
+	feeRateBps?: number;
+}
+
+/** * Class to handle Polymarket trading operations */
 export class PolymarketTrading {
 	private client: ClobClient | null = null;
 	private initPromise: Promise<void> | null = null;
 	private signer: Wallet | null = null;
 	private config: TradingConfig;
+	private marketParamsCache: Map<string, MarketParams> = new Map();
 
 	constructor(config: TradingConfig) {
 		this.config = {
 			chainId: 137, // Polygon mainnet
-			signatureType: 0, // EOA (Externally Owned Account)
+			signatureType: this.detectSignatureType(config),
 			...config,
 		};
+	}
+
+	/**
+	 * Automatically detect the signature type based on configuration
+	 * - Type 2 (POLY_GNOSIS_SAFE): When funderAddress is provided (most common for browser wallets)
+	 * - Type 1 (POLY_PROXY): For Magic/Email login (legacy)
+	 * - Type 0 (EOA): Direct wallet usage (no proxy)
+	 */
+	private detectSignatureType(config: TradingConfig): number {
+		// If explicitly provided, use it
+		if (config.signatureType !== undefined) {
+			return config.signatureType;
+		}
+
+		// Auto-detect based on funderAddress presence
+		if (config.funderAddress) {
+			// Most browser wallet users have Gnosis Safe proxies
+			// Type 2 is the most common for Polymarket proxy wallets
+			return 2; // POLY_GNOSIS_SAFE
+		}
+
+		// Default to EOA (direct wallet)
+		return 0;
 	}
 
 	/**
@@ -43,10 +74,12 @@ export class PolymarketTrading {
 	 */
 	async initialize(): Promise<void> {
 		if (this.client) return;
+
 		const cfg = getConfig(this.config);
 		const provider = new providers.JsonRpcProvider(cfg.rpcUrl);
 		const ethersSigner = new Wallet(this.config.privateKey, provider);
 		this.signer = ethersSigner;
+
 		const host = cfg.host;
 
 		// Create API credentials first
@@ -65,6 +98,13 @@ export class PolymarketTrading {
 			cfg.signatureType,
 			cfg.funderAddress,
 		);
+
+		console.log("✓ Polymarket trading client initialized");
+		console.log(`  - Signer: ${await ethersSigner.getAddress()}`);
+		console.log(`  - Signature Type: ${cfg.signatureType}`);
+		if (cfg.funderAddress) {
+			console.log(`  - Funder/Proxy: ${cfg.funderAddress}`);
+		}
 	}
 
 	/**
@@ -73,6 +113,7 @@ export class PolymarketTrading {
 	 */
 	private async ensureInitialized(): Promise<void> {
 		if (this.client) return;
+
 		if (!this.initPromise) {
 			this.initPromise = this.initialize().catch((err) => {
 				// Reset so future attempts can retry after a failure
@@ -80,6 +121,7 @@ export class PolymarketTrading {
 				throw err;
 			});
 		}
+
 		await this.initPromise;
 	}
 
@@ -108,7 +150,51 @@ export class PolymarketTrading {
 	}
 
 	/**
-	 * Place a new order
+	 * Get market parameters (tickSize, negRisk, feeRateBps) for a token.
+	 * Results are cached to avoid repeated API calls.
+	 */
+	private async getMarketParams(tokenId: string): Promise<MarketParams> {
+		// Check cache first
+		if (this.marketParamsCache.has(tokenId)) {
+			return this.marketParamsCache.get(tokenId)!;
+		}
+
+		const client = this.getClient();
+
+		// Fetch market parameters in parallel
+		const [tickSize, negRisk, feeRateBps] = await Promise.all([
+			client.getTickSize(tokenId),
+			client.getNegRisk(tokenId),
+			client
+				.getFeeRateBps(tokenId)
+				.catch(() => 0), // Fee rate might not be available for all markets
+		]);
+
+		const params: MarketParams = {
+			tickSize,
+			negRisk,
+			feeRateBps,
+		};
+
+		// Cache the results
+		this.marketParamsCache.set(tokenId, params);
+
+		return params;
+	}
+
+	/**
+	 * Clear the market parameters cache (useful if market settings change)
+	 */
+	clearMarketCache(tokenId?: string): void {
+		if (tokenId) {
+			this.marketParamsCache.delete(tokenId);
+		} else {
+			this.marketParamsCache.clear();
+		}
+	}
+
+	/**
+	 * Place a new order with automatic market parameter detection
 	 */
 	async placeOrder(args: {
 		tokenId: string;
@@ -116,67 +202,110 @@ export class PolymarketTrading {
 		size: number;
 		side: "BUY" | "SELL";
 		orderType?: "GTC" | "GTD";
+		expiration?: number;
+		nonce?: number;
+		// Optional overrides (if you know the market params)
+		tickSize?: string;
+		negRisk?: boolean;
+		feeRateBps?: number;
 	}): Promise<unknown> {
 		await this.ensureInitialized();
 		await this.assertApprovals();
 
 		const side: Side = args.side === "BUY" ? Side.BUY : Side.SELL;
-
 		const orderTypeStr = args.orderType || "GTC";
 		const orderType: OrderType.GTC | OrderType.GTD =
 			orderTypeStr === "GTD" ? OrderType.GTD : OrderType.GTC;
+
+		// Auto-detect market parameters if not provided
+		const marketParams = await this.getMarketParams(args.tokenId);
 
 		const userOrder: UserOrder = {
 			tokenID: args.tokenId,
 			price: args.price,
 			size: args.size,
 			side: side,
+			expiration: args.expiration,
+			nonce: args.nonce,
+			feeRateBps: args.feeRateBps ?? marketParams.feeRateBps,
 		};
 
 		const client = this.getClient();
+
+		console.log(`📝 Placing ${args.side} order:`);
+		console.log(`   Token: ${args.tokenId}`);
+		console.log(`   Price: ${args.price}`);
+		console.log(`   Size: ${args.size}`);
+		console.log(
+			`   Market: negRisk=${marketParams.negRisk}, tickSize=${marketParams.tickSize}`,
+		);
+
 		return client.createAndPostOrder(
 			userOrder,
 			{
-				tickSize: "0.001",
-				negRisk: false,
+				tickSize: (args.tickSize ?? marketParams.tickSize) as TickSize,
+				negRisk: args.negRisk ?? marketParams.negRisk,
 			},
 			orderType,
 		);
 	}
 
 	/**
-	 * Place a market order (FOK or FAK)
+	 * Place a market order (FOK or FAK) with automatic market parameter detection
 	 */
 	async placeMarketOrder(args: {
 		tokenId: string;
 		amount: number;
 		side: "BUY" | "SELL";
 		orderType?: "FOK" | "FAK";
+		// Optional overrides
+		tickSize?: string;
+		negRisk?: boolean;
+		feeRateBps?: number;
 	}): Promise<unknown> {
 		await this.ensureInitialized();
 		await this.assertApprovals();
 
 		const side: Side = args.side === "BUY" ? Side.BUY : Side.SELL;
-
 		const orderTypeStr = args.orderType || "FOK";
 		const orderType: OrderType.FOK | OrderType.FAK =
 			orderTypeStr === "FAK" ? OrderType.FAK : OrderType.FOK;
 
-		const userMarketOrder = {
+		// Auto-detect market parameters if not provided
+		const marketParams = await this.getMarketParams(args.tokenId);
+
+		const userMarketOrder: UserMarketOrder = {
 			tokenID: args.tokenId,
 			amount: args.amount,
 			side: side,
+			feeRateBps: args.feeRateBps ?? marketParams.feeRateBps,
 		};
 
 		const client = this.getClient();
+
+		console.log(`🚀 Placing ${args.side} market order:`);
+		console.log(`   Token: ${args.tokenId}`);
+		console.log(`   Amount: ${args.amount}`);
+		console.log(
+			`   Market: negRisk=${marketParams.negRisk}, tickSize=${marketParams.tickSize}`,
+		);
+
 		return client.createAndPostMarketOrder(
 			userMarketOrder,
 			{
-				tickSize: "0.001",
-				negRisk: true,
+				tickSize: (args.tickSize ?? marketParams.tickSize) as TickSize,
+				negRisk: args.negRisk ?? marketParams.negRisk,
 			},
 			orderType,
 		);
+	}
+
+	/**
+	 * Get market information for a token
+	 */
+	async getMarketInfo(tokenId: string): Promise<MarketParams> {
+		await this.ensureInitialized();
+		return this.getMarketParams(tokenId);
 	}
 
 	/**
@@ -208,6 +337,16 @@ export class PolymarketTrading {
 	}
 
 	/**
+	 * Cancel multiple orders by their IDs
+	 */
+	async cancelOrders(orderIds: string[]): Promise<unknown> {
+		await this.ensureInitialized();
+		await this.assertApprovals();
+		const client = this.getClient();
+		return client.cancelOrders(orderIds);
+	}
+
+	/**
 	 * Cancel all open orders
 	 */
 	async cancelAllOrders(): Promise<unknown> {
@@ -215,6 +354,16 @@ export class PolymarketTrading {
 		await this.assertApprovals();
 		const client = this.getClient();
 		return client.cancelAll();
+	}
+
+	/**
+	 * Cancel all orders for a specific market
+	 */
+	async cancelMarketOrders(tokenId: string): Promise<unknown> {
+		await this.ensureInitialized();
+		await this.assertApprovals();
+		const client = this.getClient();
+		return client.cancelMarketOrders({ asset_id: tokenId });
 	}
 
 	/**
@@ -231,7 +380,6 @@ export class PolymarketTrading {
 	 */
 	async getBalanceAllowance(params?: BalanceAllowanceParams): Promise<unknown> {
 		await this.ensureInitialized();
-		await this.assertApprovals();
 		const client = this.getClient();
 		return client.getBalanceAllowance(params);
 	}
@@ -241,18 +389,73 @@ export class PolymarketTrading {
 	 */
 	async updateBalanceAllowance(params?: BalanceAllowanceParams): Promise<void> {
 		await this.ensureInitialized();
-		await this.assertApprovals();
 		const client = this.getClient();
 		return client.updateBalanceAllowance(params);
+	}
+
+	/**
+	 * Get orderbook for a token
+	 */
+	async getOrderbook(tokenId: string): Promise<unknown> {
+		await this.ensureInitialized();
+		const client = this.getClient();
+		return client.getOrderBook(tokenId);
+	}
+
+	/**
+	 * Get current price for a token
+	 */
+	async getPrice(tokenId: string, side: "BUY" | "SELL"): Promise<unknown> {
+		await this.ensureInitialized();
+		const client = this.getClient();
+		return client.getPrice(tokenId, side);
+	}
+
+	/**
+	 * Get midpoint price for a token
+	 */
+	async getMidpoint(tokenId: string): Promise<unknown> {
+		await this.ensureInitialized();
+		const client = this.getClient();
+		return client.getMidpoint(tokenId);
+	}
+
+	/**
+	 * Get server time
+	 */
+	async getServerTime(): Promise<number> {
+		await this.ensureInitialized();
+		const client = this.getClient();
+		return client.getServerTime();
+	}
+
+	/**
+	 * Get the signer address (EOA address)
+	 */
+	async getSignerAddress(): Promise<string> {
+		await this.ensureInitialized();
+		return this.getSigner().getAddress();
+	}
+
+	/**
+	 * Get the funder address (proxy wallet address, if configured)
+	 */
+	getFunderAddress(): string | undefined {
+		return this.config.funderAddress;
+	}
+
+	/**
+	 * Get the current signature type
+	 */
+	getSignatureType(): number {
+		return this.config.signatureType ?? 0;
 	}
 }
 
 // Singleton instance for trading
 let tradingInstance: PolymarketTrading | null = null;
 
-/**
- * Get or create the trading instance
- */
+/** * Get or create the trading instance */
 export function getTradingInstance(): PolymarketTrading {
 	if (!tradingInstance) {
 		const cfg = getConfig();
@@ -261,7 +464,6 @@ export function getTradingInstance(): PolymarketTrading {
 				"POLYMARKET_PRIVATE_KEY environment variable is required for trading operations",
 			);
 		}
-
 		tradingInstance = new PolymarketTrading({
 			privateKey: cfg.privateKey,
 			chainId: cfg.chainId,

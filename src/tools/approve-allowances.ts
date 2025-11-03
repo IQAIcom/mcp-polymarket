@@ -72,7 +72,6 @@ export const approveAllowancesTool = {
 			approveUsdcForExchange: args.approveUsdcForExchange,
 			approveCtfForExchange: args.approveCtfForExchange,
 			waitForConfirmations: args.waitForConfirmations ?? 0,
-			minPriorityFeeGwei: args.minPriorityFeeGwei,
 			force: args.force ?? false,
 		});
 

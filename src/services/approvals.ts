@@ -1,7 +1,14 @@
-import { Contract, constants, providers, utils, Wallet } from "ethers";
+import {
+	type BigNumber,
+	Contract,
+	constants,
+	providers,
+	utils,
+	Wallet,
+} from "ethers";
 import { getConfig, POLYGON_ADDRESSES } from "./config.js";
 
-// Minimal ABIs needed for approvals
+// Minimal ABIs needed for approvals (from Polymarket SDK)
 const USDC_ABI = [
 	"function allowance(address owner, address spender) view returns (uint256)",
 	"function approve(address spender, uint256 amount) returns (bool)",
@@ -12,8 +19,22 @@ const CTF_ABI = [
 	"function setApprovalForAll(address operator, bool approved)",
 ];
 
+/**
+ * Get USDC contract instance (following Polymarket SDK pattern)
+ */
+function getUsdcContract(wallet: Wallet): Contract {
+	return new Contract(POLYGON_ADDRESSES.USDC_ADDRESS, USDC_ABI, wallet);
+}
+
+/**
+ * Get Conditional Tokens Framework (CTF) contract instance (following Polymarket SDK pattern)
+ */
+function getCtfContract(wallet: Wallet): Contract {
+	return new Contract(POLYGON_ADDRESSES.CTF_ADDRESS, CTF_ABI, wallet);
+}
+
 export type ApprovalCheck = {
-	usdcAllowanceForCTF: string; // as string to avoid BigNumber JSON issues
+	usdcAllowanceForCTF: string;
 	usdcAllowanceForExchange: string;
 	ctfApprovedForExchange: boolean;
 	missing: Array<
@@ -44,6 +65,7 @@ export class ApprovalRequiredError extends Error {
 	details: ApprovalCheck;
 	hint: string;
 	nextStep: { tool: string; name: string; description: string };
+
 	constructor(details: ApprovalCheck) {
 		const msgLines = [
 			"Token approvals are required before proceeding.",
@@ -61,6 +83,7 @@ export class ApprovalRequiredError extends Error {
 				"Grant USDC and CTF approvals required for Polymarket trading (revocable at any time).",
 		};
 	}
+
 	toJSON() {
 		return {
 			approvalRequired: true,
@@ -83,57 +106,25 @@ export class PolymarketApprovals {
 		this.signer = signer ?? getSignerFromEnv();
 	}
 
-	/** Ensure we have a Provider */
-	private getProvider(): providers.Provider {
-		const provider = this.signer.provider;
-		if (!provider) throw new Error("Signer provider is not available");
-		return provider;
-	}
-
 	/** Get the next pending nonce for this signer */
 	private async getPendingNonce(): Promise<number> {
 		return this.signer.getTransactionCount("pending");
 	}
 
 	/**
-	 * Build EIP-1559 fee overrides with a safe floor on Polygon.
-	 * Applies a +20% bump over suggested values and enforces a minimum priority fee.
+	 * Build gas overrides for Polygon transactions.
+	 * Uses fixed gas settings similar to the Polymarket SDK example.
 	 */
-	private async buildFeeOverrides(minPriorityFeeGwei?: number): Promise<{
-		maxFeePerGas: providers.TransactionRequest["maxFeePerGas"];
-		maxPriorityFeePerGas: providers.TransactionRequest["maxPriorityFeePerGas"];
-	}> {
-		const provider = this.getProvider();
-		const feeData = await provider.getFeeData();
-
-		const envMinPriGwei = Number(process.env.POLYMARKET_MIN_PRIORITY_FEE_GWEI);
-		const minPriGwei = Number.isFinite(envMinPriGwei)
-			? envMinPriGwei
-			: (minPriorityFeeGwei ?? 30); // default 30 gwei
-
-		const floorPri = utils.parseUnits(String(minPriGwei), "gwei");
-		const suggestedPri = feeData.maxPriorityFeePerGas
-			? feeData.maxPriorityFeePerGas
-					.mul(12)
-					.div(10) // +20%
-			: floorPri;
-		const maxPriorityFeePerGas = suggestedPri.gte(floorPri)
-			? suggestedPri
-			: floorPri;
-
-		const suggestedMaxFee = feeData.maxFeePerGas
-			? feeData.maxFeePerGas
-					.mul(12)
-					.div(10) // +20%
-			: undefined;
-		const minMaxFee = maxPriorityFeePerGas.mul(2);
-		const maxFeePerGas = suggestedMaxFee
-			? suggestedMaxFee.gte(minMaxFee)
-				? suggestedMaxFee
-				: minMaxFee
-			: minMaxFee;
-
-		return { maxFeePerGas, maxPriorityFeePerGas };
+	private buildFeeOverrides(): {
+		gasPrice: providers.TransactionRequest["gasPrice"];
+		gasLimit: providers.TransactionRequest["gasLimit"];
+	} {
+		// Following the SDK example pattern with 100 gwei gas price
+		// and 200k gas limit for approval transactions
+		return {
+			gasPrice: utils.parseUnits("100", "gwei"), // 100 gwei = 100_000_000_000 wei
+			gasLimit: 200_000,
+		};
 	}
 
 	/**
@@ -146,10 +137,7 @@ export class PolymarketApprovals {
 		) => Promise<providers.TransactionResponse>,
 		nextNonceRef: { value: number },
 		waitConfs: number,
-		feeOverrides: Pick<
-			providers.TransactionRequest,
-			"maxFeePerGas" | "maxPriorityFeePerGas"
-		>,
+		feeOverrides: Pick<providers.TransactionRequest, "gasPrice" | "gasLimit">,
 	): Promise<string> {
 		const trySend = async () => {
 			return send({ nonce: nextNonceRef.value, ...feeOverrides });
@@ -158,6 +146,7 @@ export class PolymarketApprovals {
 		try {
 			const tx = await trySend();
 			nextNonceRef.value += 1;
+
 			if (waitConfs > 0) {
 				const receipt = await tx.wait(waitConfs);
 				return receipt.transactionHash;
@@ -171,12 +160,14 @@ export class PolymarketApprovals {
 				msg.includes("replace") ||
 				msg.includes("replacement") ||
 				msg.toLowerCase().includes("nonce");
+
 			if (!isReplaceErr) throw e;
 
 			// Refresh nonce and retry once
 			nextNonceRef.value = await this.getPendingNonce();
 			const tx = await trySend();
 			nextNonceRef.value += 1;
+
 			if (waitConfs > 0) {
 				const receipt = await tx.wait(waitConfs);
 				return receipt.transactionHash;
@@ -187,13 +178,16 @@ export class PolymarketApprovals {
 
 	static rationale(): string {
 		const a = POLYGON_ADDRESSES;
-		return [
+
+		const rationale = [
 			"Trading on Polymarket requires granting limited permissions so the exchange can settle orders:",
 			"- USDC allowances let the Conditional Tokens Framework (CTF) and the Exchange move your USDC to mint/redeem and settle trades.",
 			"- CTF setApprovalForAll lets the Exchange move your position tokens during settlement.",
 			`Contracts: USDC=${a.USDC_ADDRESS}, CTF=${a.CTF_ADDRESS}, Exchange=${a.EXCHANGE_ADDRESS}`,
 			"These are standard ERC20/ERC1155 approvals, set to MaxUint for fewer prompts, and can be revoked in your wallet at any time.",
-		].join("\n");
+		];
+
+		return rationale.join("\n");
 	}
 
 	/** Format an approval error into a response object. */
@@ -201,23 +195,40 @@ export class PolymarketApprovals {
 		return err.toJSON();
 	}
 
-	/** Check current approval state for the connected account */
+	/**
+	 * Get contract addresses for Polygon mainnet
+	 */
+	private getContractAddresses() {
+		return POLYGON_ADDRESSES;
+	}
+
+	/** Check current approval state for the signer's wallet address */
 	async check(): Promise<ApprovalCheck> {
-		const { USDC_ADDRESS, CTF_ADDRESS, EXCHANGE_ADDRESS } = POLYGON_ADDRESSES;
+		const addresses = this.getContractAddresses();
+		const { CTF_ADDRESS, EXCHANGE_ADDRESS } = addresses;
 
-		const usdc = new Contract(USDC_ADDRESS, USDC_ABI, this.signer);
-		const ctf = new Contract(CTF_ADDRESS, CTF_ABI, this.signer);
+		const usdc = getUsdcContract(this.signer);
+		const ctf = getCtfContract(this.signer);
 
+		const walletAddress = this.signer.address;
+
+		// Check allowances as per Polymarket SDK example
 		const [usdcAllowanceCtf, usdcAllowanceExchange, ctfApprovedForExchange] =
 			await Promise.all([
-				usdc.allowance(this.signer.address, CTF_ADDRESS),
-				usdc.allowance(this.signer.address, EXCHANGE_ADDRESS),
-				ctf.isApprovedForAll(this.signer.address, EXCHANGE_ADDRESS),
+				usdc.allowance(walletAddress, CTF_ADDRESS) as Promise<BigNumber>,
+				usdc.allowance(walletAddress, EXCHANGE_ADDRESS) as Promise<BigNumber>,
+				ctf.isApprovedForAll(
+					walletAddress,
+					EXCHANGE_ADDRESS,
+				) as Promise<boolean>,
 			]);
 
 		const missing: ApprovalCheck["missing"] = [];
-		if (usdcAllowanceCtf.isZero()) missing.push("USDC_ALLOWANCE_FOR_CTF");
-		if (usdcAllowanceExchange.isZero())
+
+		// Check if approvals are set (following SDK example - check if > 0)
+		if (!usdcAllowanceCtf.gt(constants.Zero))
+			missing.push("USDC_ALLOWANCE_FOR_CTF");
+		if (!usdcAllowanceExchange.gt(constants.Zero))
 			missing.push("USDC_ALLOWANCE_FOR_EXCHANGE");
 		if (!ctfApprovedForExchange) missing.push("CTF_APPROVAL_FOR_EXCHANGE");
 
@@ -226,50 +237,45 @@ export class PolymarketApprovals {
 			usdcAllowanceForExchange: usdcAllowanceExchange.toString(),
 			ctfApprovedForExchange,
 			missing,
-			addresses: POLYGON_ADDRESSES,
-			owner: this.signer.address,
+			addresses,
+			owner: walletAddress,
 		};
 	}
 
-	/** Throw a structured error if approvals are missing */
+	/**
+	 * Throw a structured error if approvals are missing.
+	 */
 	async assertApproved(): Promise<void> {
 		const status = await this.check();
+
 		if (status.missing.length > 0) {
 			throw new ApprovalRequiredError(status);
 		}
 	}
 
-	/** Execute approvals. By default approves all required allowances with MaxUint256.
-	 * Use waitForConfirmations=0 (default) to return immediately after broadcasting txs.
+	/**
+	 * Execute approvals. By default approves all required allowances with MaxUint256.
+	 * Follows the Polymarket SDK example pattern for setting approvals.
 	 */
 	async approveAll(opts?: {
 		approveUsdcForCTF?: boolean;
 		approveUsdcForExchange?: boolean;
 		approveCtfForExchange?: boolean;
-		waitForConfirmations?: number; // 0 to just return tx hashes without waiting
-		minPriorityFeeGwei?: number; // optional floor override
-		force?: boolean; // if true, send txs even if already approved
+		waitForConfirmations?: number;
+		force?: boolean;
 	}): Promise<{
 		txHashes: string[];
 		message: string;
 		waitedConfirmations: number;
 	}> {
-		const { USDC_ADDRESS, CTF_ADDRESS, EXCHANGE_ADDRESS } = POLYGON_ADDRESSES;
+		const addresses = this.getContractAddresses();
+		const { CTF_ADDRESS, EXCHANGE_ADDRESS } = addresses;
 
-		const usdc = new Contract(USDC_ADDRESS, USDC_ABI, this.signer);
-		const ctf = new Contract(CTF_ADDRESS, CTF_ABI, this.signer);
+		const usdc = getUsdcContract(this.signer);
+		const ctf = getCtfContract(this.signer);
 
-		// Determine which approvals are missing to avoid redundant transactions
+		// Determine which approvals are missing
 		const current = await this.check();
-		const missingUsdcForCTF = current.missing.includes(
-			"USDC_ALLOWANCE_FOR_CTF",
-		);
-		const missingUsdcForExchange = current.missing.includes(
-			"USDC_ALLOWANCE_FOR_EXCHANGE",
-		);
-		const missingCtfForExchange = current.missing.includes(
-			"CTF_APPROVAL_FOR_EXCHANGE",
-		);
 
 		const selections = {
 			approveUsdcForCTF: opts?.approveUsdcForCTF ?? true,
@@ -279,11 +285,17 @@ export class PolymarketApprovals {
 
 		const txHashes: string[] = [];
 		const waitConfs = Math.max(0, opts?.waitForConfirmations ?? 0);
-		const feeOverrides = await this.buildFeeOverrides(opts?.minPriorityFeeGwei);
+		const feeOverrides = this.buildFeeOverrides();
 		const nextNonceRef = { value: await this.getPendingNonce() };
 
 		let actions = 0;
-		if (selections.approveUsdcForCTF && (opts?.force || missingUsdcForCTF)) {
+
+		// Set USDC allowance for CTF (Conditional Tokens Framework)
+		// This allows CTF to move USDC for minting/redeeming positions
+		if (
+			selections.approveUsdcForCTF &&
+			(opts?.force || current.missing.includes("USDC_ALLOWANCE_FOR_CTF"))
+		) {
 			const h = await this.sendWithNonceAndRetry(
 				(overrides) =>
 					usdc.approve(CTF_ADDRESS, constants.MaxUint256, overrides),
@@ -293,11 +305,14 @@ export class PolymarketApprovals {
 			);
 			txHashes.push(h);
 			actions++;
+			console.log(`Setting USDC allowance for CTF: ${h}`);
 		}
 
+		// Set USDC allowance for Exchange
+		// This allows the Exchange to move USDC for order settlement
 		if (
 			selections.approveUsdcForExchange &&
-			(opts?.force || missingUsdcForExchange)
+			(opts?.force || current.missing.includes("USDC_ALLOWANCE_FOR_EXCHANGE"))
 		) {
 			const h = await this.sendWithNonceAndRetry(
 				(overrides) =>
@@ -308,11 +323,14 @@ export class PolymarketApprovals {
 			);
 			txHashes.push(h);
 			actions++;
+			console.log(`Setting USDC allowance for Exchange: ${h}`);
 		}
 
+		// Set CTF approval for Exchange
+		// This allows the Exchange to move position tokens (CTF ERC1155 tokens)
 		if (
 			selections.approveCtfForExchange &&
-			(opts?.force || missingCtfForExchange)
+			(opts?.force || current.missing.includes("CTF_APPROVAL_FOR_EXCHANGE"))
 		) {
 			const h = await this.sendWithNonceAndRetry(
 				(overrides) => ctf.setApprovalForAll(EXCHANGE_ADDRESS, true, overrides),
@@ -322,7 +340,10 @@ export class PolymarketApprovals {
 			);
 			txHashes.push(h);
 			actions++;
+			console.log(`Setting Conditional Tokens allowance for Exchange: ${h}`);
 		}
+
+		console.log("Allowances set");
 
 		return {
 			txHashes,
