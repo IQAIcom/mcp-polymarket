@@ -27,7 +27,7 @@ export function getConfig(overrides: Partial<BaseConfig> = {}): BaseConfig {
 	const chainId = Number(overrides.chainId ?? process.env.CHAIN_ID ?? 137);
 
 	const signatureType = Number(
-		overrides.signatureType ?? process.env.SIGNATURE_TYPE ?? 0,
+		overrides.signatureType ?? process.env.SIGNATURE_TYPE ?? 2,
 	);
 
 	const rpcUrl =
