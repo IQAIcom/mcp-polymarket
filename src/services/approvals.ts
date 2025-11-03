@@ -6,7 +6,7 @@ import {
 	utils,
 	Wallet,
 } from "ethers";
-import { getConfig, getContractConfig } from "./config.js";
+import { getConfig, POLYGON_ADDRESSES } from "./config.js";
 
 // Minimal ABIs needed for approvals (from Polymarket SDK)
 const USDC_ABI = [
@@ -23,16 +23,14 @@ const CTF_ABI = [
  * Get USDC contract instance (following Polymarket SDK pattern)
  */
 function getUsdcContract(wallet: Wallet): Contract {
-	const contractConfig = getContractConfig(137); // Polygon mainnet
-	return new Contract(contractConfig.collateral, USDC_ABI, wallet);
+	return new Contract(POLYGON_ADDRESSES.USDC_ADDRESS, USDC_ABI, wallet);
 }
 
 /**
  * Get Conditional Tokens Framework (CTF) contract instance (following Polymarket SDK pattern)
  */
 function getCtfContract(wallet: Wallet): Contract {
-	const contractConfig = getContractConfig(137); // Polygon mainnet
-	return new Contract(contractConfig.conditionalTokens, CTF_ABI, wallet);
+	return new Contract(POLYGON_ADDRESSES.CTF_ADDRESS, CTF_ABI, wallet);
 }
 
 export type ApprovalCheck = {
@@ -44,11 +42,7 @@ export type ApprovalCheck = {
 		| "USDC_ALLOWANCE_FOR_EXCHANGE"
 		| "CTF_APPROVAL_FOR_EXCHANGE"
 	>;
-	addresses: {
-		exchange: string;
-		collateral: string;
-		conditionalTokens: string;
-	};
+	addresses: typeof POLYGON_ADDRESSES;
 	owner: string;
 };
 
@@ -183,13 +177,13 @@ export class PolymarketApprovals {
 	}
 
 	static rationale(): string {
-		const contractConfig = getContractConfig(137); // Polygon mainnet
+		const a = POLYGON_ADDRESSES;
 
 		const rationale = [
 			"Trading on Polymarket requires granting limited permissions so the exchange can settle orders:",
 			"- USDC allowances let the Conditional Tokens Framework (CTF) and the Exchange move your USDC to mint/redeem and settle trades.",
 			"- CTF setApprovalForAll lets the Exchange move your position tokens during settlement.",
-			`Contracts: USDC=${contractConfig.collateral}, CTF=${contractConfig.conditionalTokens}, Exchange=${contractConfig.exchange}`,
+			`Contracts: USDC=${a.USDC_ADDRESS}, CTF=${a.CTF_ADDRESS}, Exchange=${a.EXCHANGE_ADDRESS}`,
 			"These are standard ERC20/ERC1155 approvals, set to MaxUint for fewer prompts, and can be revoked in your wallet at any time.",
 		];
 
@@ -205,12 +199,13 @@ export class PolymarketApprovals {
 	 * Get contract addresses for Polygon mainnet
 	 */
 	private getContractAddresses() {
-		return getContractConfig(137); // Polygon mainnet
+		return POLYGON_ADDRESSES;
 	}
 
 	/** Check current approval state for the signer's wallet address */
 	async check(): Promise<ApprovalCheck> {
-		const contractConfig = this.getContractAddresses();
+		const addresses = this.getContractAddresses();
+		const { CTF_ADDRESS, EXCHANGE_ADDRESS } = addresses;
 
 		const usdc = getUsdcContract(this.signer);
 		const ctf = getCtfContract(this.signer);
@@ -220,17 +215,11 @@ export class PolymarketApprovals {
 		// Check allowances as per Polymarket SDK example
 		const [usdcAllowanceCtf, usdcAllowanceExchange, ctfApprovedForExchange] =
 			await Promise.all([
-				usdc.allowance(
-					walletAddress,
-					contractConfig.conditionalTokens,
-				) as Promise<BigNumber>,
-				usdc.allowance(
-					walletAddress,
-					contractConfig.exchange,
-				) as Promise<BigNumber>,
+				usdc.allowance(walletAddress, CTF_ADDRESS) as Promise<BigNumber>,
+				usdc.allowance(walletAddress, EXCHANGE_ADDRESS) as Promise<BigNumber>,
 				ctf.isApprovedForAll(
 					walletAddress,
-					contractConfig.exchange,
+					EXCHANGE_ADDRESS,
 				) as Promise<boolean>,
 			]);
 
@@ -248,7 +237,7 @@ export class PolymarketApprovals {
 			usdcAllowanceForExchange: usdcAllowanceExchange.toString(),
 			ctfApprovedForExchange,
 			missing,
-			addresses: contractConfig,
+			addresses,
 			owner: walletAddress,
 		};
 	}
@@ -279,7 +268,8 @@ export class PolymarketApprovals {
 		message: string;
 		waitedConfirmations: number;
 	}> {
-		const contractConfig = this.getContractAddresses();
+		const addresses = this.getContractAddresses();
+		const { CTF_ADDRESS, EXCHANGE_ADDRESS } = addresses;
 
 		const usdc = getUsdcContract(this.signer);
 		const ctf = getCtfContract(this.signer);
@@ -308,7 +298,7 @@ export class PolymarketApprovals {
 		) {
 			const h = await this.sendWithNonceAndRetry(
 				(overrides) =>
-					usdc.approve(contractConfig.conditionalTokens, constants.MaxUint256, overrides),
+					usdc.approve(CTF_ADDRESS, constants.MaxUint256, overrides),
 				nextNonceRef,
 				waitConfs,
 				feeOverrides,
@@ -326,7 +316,7 @@ export class PolymarketApprovals {
 		) {
 			const h = await this.sendWithNonceAndRetry(
 				(overrides) =>
-					usdc.approve(contractConfig.exchange, constants.MaxUint256, overrides),
+					usdc.approve(EXCHANGE_ADDRESS, constants.MaxUint256, overrides),
 				nextNonceRef,
 				waitConfs,
 				feeOverrides,
@@ -343,7 +333,7 @@ export class PolymarketApprovals {
 			(opts?.force || current.missing.includes("CTF_APPROVAL_FOR_EXCHANGE"))
 		) {
 			const h = await this.sendWithNonceAndRetry(
-				(overrides) => ctf.setApprovalForAll(contractConfig.exchange, true, overrides),
+				(overrides) => ctf.setApprovalForAll(EXCHANGE_ADDRESS, true, overrides),
 				nextNonceRef,
 				waitConfs,
 				feeOverrides,
