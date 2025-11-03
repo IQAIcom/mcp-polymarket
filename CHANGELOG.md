@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.9
+
+### Patch Changes
+
+- 187fbb4: Fix signature error on place order
+
 ## 0.0.8
 
 ### Patch Changes
