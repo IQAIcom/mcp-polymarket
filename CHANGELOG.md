@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.13
+
+### Patch Changes
+
+- 768ef22: Makes default signature type to 2 for supporting proxy contract
+
 ## 0.0.12
 
 ### Patch Changes
