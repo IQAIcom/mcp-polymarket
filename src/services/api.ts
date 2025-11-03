@@ -43,7 +43,7 @@ export class PolymarketAPI {
 	 * Lists active markets with pagination.
 	 */
 	async listActiveMarkets(limit = 20, offset = 0) {
-		return this.gamma.getActiveMarkets({ limit, offset });
+		return this.gamma.getActiveMarkets({ limit, offset, closed: false });
 	}
 
 	/**
