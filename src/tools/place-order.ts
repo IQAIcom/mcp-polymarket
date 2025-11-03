@@ -8,11 +8,15 @@ const placeOrderSchema = z.object({
 		.number()
 		.min(0)
 		.max(1)
-		.describe("The limit price for the order (between 0 and 1)"),
+		.describe(
+			"The limit price for the order (between 0 and 1). This is the probability/price per share.",
+		),
 	size: z
 		.number()
 		.positive()
-		.describe("The size/amount of the order in contract units"),
+		.describe(
+			"Number of shares to trade. For both BUY and SELL orders, this is always the number of outcome tokens/shares.",
+		),
 	side: z.enum(["BUY", "SELL"]).describe("The side of the order: BUY or SELL"),
 	orderType: z
 		.enum(["GTC", "GTD"])
@@ -25,7 +29,7 @@ const placeOrderSchema = z.object({
 export const placeOrderTool = {
 	name: "place_order",
 	description:
-		"Place a limit order on Polymarket. Places a buy or sell order at a specific price.",
+		"Place a limit order on Polymarket at a specific price. Specify the number of shares (size) and price (0-1). For both BUY and SELL, you specify the number of shares you want to trade. Example: size=10, price=0.6 means buy/sell 10 shares at $0.60 per share (total: $6).",
 	parameters: placeOrderSchema,
 	execute: async (args: z.infer<typeof placeOrderSchema>) => {
 		try {

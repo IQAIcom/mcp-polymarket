@@ -35,7 +35,9 @@ export function getConfig(overrides: Partial<BaseConfig> = {}): BaseConfig {
 
 	const privateKey = overrides.privateKey ?? process.env.POLYMARKET_PRIVATE_KEY;
 	const funderAddress =
-		overrides.funderAddress ?? process.env.POLYMARKET_FUNDER;
+		overrides.funderAddress ??
+		process.env.POLYMARKET_FUNDER ??
+		process.env.FUNDER_ADDRESS;
 
 	return {
 		host,
