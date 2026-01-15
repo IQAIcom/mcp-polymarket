@@ -7,7 +7,7 @@ import type {
 	UserOrder,
 } from "@polymarket/clob-client";
 import { ClobClient, OrderType, Side } from "@polymarket/clob-client";
-import { Wallet, providers } from "ethers";
+import { providers, Wallet } from "ethers";
 import { PolymarketApprovals } from "./approvals.js";
 import { getConfig } from "./config.js";
 
