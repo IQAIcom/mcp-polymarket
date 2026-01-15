@@ -7,7 +7,7 @@ import type {
 	UserOrder,
 } from "@polymarket/clob-client";
 import { ClobClient, OrderType, Side } from "@polymarket/clob-client";
-import { providers, Wallet } from "ethers";
+import { Wallet, providers } from "ethers";
 import { PolymarketApprovals } from "./approvals.js";
 import { getConfig } from "./config.js";
 
@@ -74,7 +74,12 @@ export class PolymarketTrading {
 	 */
 	async initialize(): Promise<void> {
 		if (this.client) return;
-		let apiCreds;
+		let apiCreds: {
+			key: string;
+			secret: string;
+			passphrase: string;
+			apiKey?: string;
+		};
 		const cfg = getConfig(this.config);
 		const provider = new providers.JsonRpcProvider(cfg.rpcUrl);
 		const ethersSigner = new Wallet(this.config.privateKey, provider);
@@ -86,7 +91,7 @@ export class PolymarketTrading {
 		// See: https://github.com/Polymarket/clob-client/issues/202
 		try {
 			apiCreds = await tempClient.deriveApiKey();
-		} catch (e) {
+		} catch {
 			apiCreds = await tempClient.createApiKey();
 		}
 
@@ -157,8 +162,9 @@ export class PolymarketTrading {
 	 */
 	private async getMarketParams(tokenId: string): Promise<MarketParams> {
 		// Check cache first
-		if (this.marketParamsCache.has(tokenId)) {
-			return this.marketParamsCache.get(tokenId)!;
+		const cached = this.marketParamsCache.get(tokenId);
+		if (cached) {
+			return cached;
 		}
 
 		const client = this.getClient();

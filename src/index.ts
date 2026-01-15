@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
+import { readFileSync } from "node:fs";
 import { FastMCP } from "fastmcp";
-import { readFileSync } from "fs";
 import * as tools from "./tools/index.js";
 
 const packageJson = JSON.parse(
