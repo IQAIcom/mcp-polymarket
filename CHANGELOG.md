@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.14
+
+### Patch Changes
+
+- e4de267: Fix clob client errors on createOrDeriveApiKey
+
 ## 0.0.13
 
 ### Patch Changes
