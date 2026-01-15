@@ -74,27 +74,29 @@ export class PolymarketTrading {
 	 */
 	async initialize(): Promise<void> {
 		if (this.client) return;
-
+		let apiCreds;
 		const cfg = getConfig(this.config);
 		const provider = new providers.JsonRpcProvider(cfg.rpcUrl);
 		const ethersSigner = new Wallet(this.config.privateKey, provider);
 		this.signer = ethersSigner;
-
 		const host = cfg.host;
+		const tempClient = new ClobClient(host, cfg.chainId || 137, ethersSigner);
+		// Attempt to first derive, and on failure create a new
+		// There seems to be an issue with createOrDeriveApiKey()
+		// See: https://github.com/Polymarket/clob-client/issues/202
+		try {
+			apiCreds = await tempClient.deriveApiKey();
+		} catch (e) {
+			apiCreds = await tempClient.createApiKey();
+		}
 
-		// Create API credentials first
-		const creds = await new ClobClient(
-			host,
-			cfg.chainId || 137,
-			ethersSigner,
-		).createOrDeriveApiKey();
-
+		apiCreds.apiKey = apiCreds.key;
 		// Create client with credentials
 		this.client = new ClobClient(
 			host,
 			cfg.chainId || 137,
 			ethersSigner,
-			creds,
+			apiCreds,
 			cfg.signatureType,
 			cfg.funderAddress,
 		);
