@@ -13,5 +13,6 @@ export { getTradeHistoryTool } from "./get-trade-history.js";
 export { listActiveMarketsTool } from "./list-active-markets.js";
 export { placeMarketOrderTool } from "./place-market-order.js";
 export { placeOrderTool } from "./place-order.js";
+export { redeemPositionsTool } from "./redeem-positions.js";
 export { searchMarketsTool } from "./search-markets.js";
 export { updateBalanceAllowanceTool } from "./update-balance-allowance.js";
