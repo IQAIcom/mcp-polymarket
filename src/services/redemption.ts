@@ -3,7 +3,7 @@
  * Handles redemption of resolved market positions on Polymarket
  */
 
-import { BigNumber, Contract, providers, Wallet } from "ethers";
+import { type BigNumber, Contract, providers, Wallet } from "ethers";
 import { getConfig, POLYGON_ADDRESSES } from "./config.js";
 
 // Parent collection ID for Polymarket (constant)
