@@ -89,31 +89,21 @@ export class PolymarketRedemption {
 	 * Get CTF token balance for a specific position
 	 */
 	async getCTFBalance(tokenId: string): Promise<bigint> {
-		try {
-			const ctf = this.getCtfContract();
-			const walletAddress = this.getWalletAddress();
-			const balance: BigNumber = await ctf.balanceOf(walletAddress, tokenId);
-			return balance.toBigInt();
-		} catch (error) {
-			console.error("Error fetching CTF balance:", error);
-			return 0n;
-		}
+		const ctf = this.getCtfContract();
+		const walletAddress = this.getWalletAddress();
+		const balance: BigNumber = await ctf.balanceOf(walletAddress, tokenId);
+		return balance.toBigInt();
 	}
 
 	/**
 	 * Check if a market condition has been resolved
 	 */
 	async isMarketResolved(conditionId: string): Promise<boolean> {
-		try {
-			const ctf = this.getCtfContract();
-			const conditionIdBytes32 = this.formatConditionId(conditionId);
-			const payoutDenominator: BigNumber =
-				await ctf.payoutDenominator(conditionIdBytes32);
-			return payoutDenominator.gt(0);
-		} catch (error) {
-			console.error("Error checking market resolution:", error);
-			return false;
-		}
+		const ctf = this.getCtfContract();
+		const conditionIdBytes32 = this.formatConditionId(conditionId);
+		const payoutDenominator: BigNumber =
+			await ctf.payoutDenominator(conditionIdBytes32);
+		return payoutDenominator.gt(0);
 	}
 
 	/**
@@ -122,46 +112,34 @@ export class PolymarketRedemption {
 	 * For binary markets: [1] for first outcome won, [2] for second outcome won
 	 */
 	async getWinningIndexSets(conditionId: string): Promise<bigint[]> {
-		try {
-			const ctf = this.getCtfContract();
-			const conditionIdBytes32 = this.formatConditionId(conditionId);
+		const ctf = this.getCtfContract();
+		const conditionIdBytes32 = this.formatConditionId(conditionId);
 
-			// Get payout numerators for both outcomes (0 and 1)
-			const [numerator0, numerator1]: [BigNumber, BigNumber] =
-				await Promise.all([
-					ctf.payoutNumerators(conditionIdBytes32, 0),
-					ctf.payoutNumerators(conditionIdBytes32, 1),
-				]);
+		// Get payout numerators for both outcomes (0 and 1)
+		const [numerator0, numerator1]: [BigNumber, BigNumber] = await Promise.all([
+			ctf.payoutNumerators(conditionIdBytes32, 0),
+			ctf.payoutNumerators(conditionIdBytes32, 1),
+		]);
 
-			// Build array of winning index sets
-			// Index set 1 = outcome 0, Index set 2 = outcome 1
-			const winningIndexSets: bigint[] = [];
-			if (numerator0.gt(0)) winningIndexSets.push(1n);
-			if (numerator1.gt(0)) winningIndexSets.push(2n);
+		// Build array of winning index sets
+		// Index set 1 = outcome 0, Index set 2 = outcome 1
+		const winningIndexSets: bigint[] = [];
+		if (numerator0.gt(0)) winningIndexSets.push(1n);
+		if (numerator1.gt(0)) winningIndexSets.push(2n);
 
-			return winningIndexSets;
-		} catch (error) {
-			console.error("Error getting winning index sets:", error);
-			// Fallback to trying both index sets
-			return [1n, 2n];
-		}
+		return winningIndexSets;
 	}
 
 	/**
 	 * Check if NegRiskAdapter is approved to spend CTF tokens
 	 */
 	async isNegRiskAdapterApproved(): Promise<boolean> {
-		try {
-			const ctf = this.getCtfContract();
-			const walletAddress = this.getWalletAddress();
-			return ctf.isApprovedForAll(
-				walletAddress,
-				POLYGON_ADDRESSES.NEG_RISK_ADAPTER_ADDRESS,
-			);
-		} catch (error) {
-			console.error("Error checking NegRiskAdapter approval:", error);
-			return false;
-		}
+		const ctf = this.getCtfContract();
+		const walletAddress = this.getWalletAddress();
+		return ctf.isApprovedForAll(
+			walletAddress,
+			POLYGON_ADDRESSES.NEG_RISK_ADAPTER_ADDRESS,
+		);
 	}
 
 	/**
