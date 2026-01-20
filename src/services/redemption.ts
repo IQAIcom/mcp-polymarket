@@ -127,12 +127,11 @@ export class PolymarketRedemption {
 			const conditionIdBytes32 = this.formatConditionId(conditionId);
 
 			// Get payout numerators for both outcomes (0 and 1)
-			const [numerator0, numerator1]: [BigNumber, BigNumber] = await Promise.all(
-				[
+			const [numerator0, numerator1]: [BigNumber, BigNumber] =
+				await Promise.all([
 					ctf.payoutNumerators(conditionIdBytes32, 0),
 					ctf.payoutNumerators(conditionIdBytes32, 1),
-				],
-			);
+				]);
 
 			// Build array of winning index sets
 			// Index set 1 = outcome 0, Index set 2 = outcome 1
@@ -249,7 +248,8 @@ export class PolymarketRedemption {
 				});
 			} else {
 				// For regular CTF markets
-				const winningIndexSets = await this.getWinningIndexSets(conditionIdBytes32);
+				const winningIndexSets =
+					await this.getWinningIndexSets(conditionIdBytes32);
 
 				if (winningIndexSets.length === 0) {
 					return {
