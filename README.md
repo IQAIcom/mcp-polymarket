@@ -76,6 +76,11 @@ Add the following configuration to your MCP client settings (e.g., `claude_deskt
 | :--- | :--- | :--- | :--- |
 | `POLYMARKET_PRIVATE_KEY` | No | Private key for trading (enables trading tools) | - |
 | `POLYMARKET_RPC_URL` | No | Polygon RPC URL for transactions | `https://polygon-rpc.com` |
+| `CLOB_API_BASE` | No | Polymarket CLOB API base URL | `https://clob.polymarket.com` |
+| `CHAIN_ID` | No | Blockchain network chain ID | `137` (Polygon) |
+| `SIGNATURE_TYPE` | No | Signature type for signing transactions | `2` |
+| `POLYMARKET_FUNDER` | No | Funder address for transactions | - |
+| `FUNDER_ADDRESS` | No | Alternative funder address (alias) | - |
 
 ## 💡 Usage Examples
 
