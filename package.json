@@ -45,6 +45,7 @@
 		"@changesets/cli": "^2.29.7",
 		"@types/node": "^24.9.1",
 		"tsx": "^4.20.6",
-		"typescript": "^5.9.3"
+		"typescript": "^5.9.3",
+		"zod-to-json-schema": "^3.25.1"
 	}
 }
