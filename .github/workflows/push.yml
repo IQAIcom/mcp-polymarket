@@ -1,5 +1,7 @@
-name: Push checks
-on: [push]
+name: Push checks (Template - Manual Trigger)
+
+# To enable, change to e.g.: on: [push]
+on: workflow_dispatch
 
 jobs:
   Checkout:

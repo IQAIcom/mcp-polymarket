@@ -1,0 +1,47 @@
+name: Sync MCP Tool Docs
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  sync-tools:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            corepack enable
+            pnpm install --frozen-lockfile
+          else
+            npm install
+          fi
+
+      - name: Generate MCP tool documentation
+        run: npx tsx .github/actions/generate-mcp-tools/generate-tools.mjs
+
+      - name: Commit README changes
+        run: |
+          if git diff --quiet; then
+            echo "No README changes"
+            exit 0
+          fi
+
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add README.md
+          git commit -m "chore: auto-sync MCP tool documentation"
+          git push

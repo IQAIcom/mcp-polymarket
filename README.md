@@ -1,378 +1,278 @@
 # 📊 Polymarket MCP Server
 
-A Model Context Protocol (MCP) server implementation for interacting with Polymarket's prediction markets. This server provides tools for retrieving market data and executing trades through the Polymarket API, enabling AI agents to interact with prediction markets seamlessly.
+[![npm version](https://img.shields.io/npm/v/@iqai/mcp-polymarket.svg)](https://www.npmjs.com/package/@iqai/mcp-polymarket)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
+## 📖 Overview
+
+The Polymarket MCP Server enables AI agents to interact with [Polymarket](https://polymarket.com), a leading prediction market platform on Polygon. This server provides comprehensive access to market data, real-time pricing, order books, and trading capabilities through the Polymarket API.
+
+By implementing the Model Context Protocol (MCP), this server allows Large Language Models (LLMs) to discover prediction markets, analyze odds (probabilities), execute trades, and track portfolio positions directly through their context window, bridging the gap between AI and decentralized prediction markets.
 
 ## ✨ Features
 
-### 📈 Market Data Tools
-- **get_market_by_slug**: Get detailed information about a specific market
-- **get_event_by_slug**: Get information about events (groups of related markets)
-- **list_active_markets**: List currently active markets with pagination
-- **search_markets**: Search for markets, events, and profiles
-- **get_markets_by_tag**: Filter markets by category tags
-- **get_all_tags**: Get all available market tags
-- **get_order_book**: View current order book for a market
+*   **Market Discovery**: Search and filter prediction markets by keywords, tags, and status.
+*   **Real-time Pricing**: Access live price data, implied probabilities, and depth-of-market (order books) for any outcome token.
+*   **Trading Capabilities**: Place limit orders, market orders, and manage open orders (requires private key).
+*   **Portfolio Tracking**: Monitor user positions, trade history, and balances for specific wallet addresses.
+*   **Order Management**: View, cancel, and manage open orders across all markets.
 
-### 💰 Trading Tools (Optional - Requires Private Key)
-Trading tools are automatically enabled when `POLYMARKET_PRIVATE_KEY` is configured:
-- **place_order**: Place limit orders (GTC/GTD)
-- **place_market_order**: Execute market orders immediately (FOK/FAK)
-- **get_open_orders**: View your open orders
-- **get_order**: Get details of a specific order
-- **cancel_order**: Cancel a specific order
-- **cancel_all_orders**: Cancel all open orders
-- **get_trade_history**: View your trade history
-- **get_balance_allowance**: Check account balances and allowances (requires approvals)
-- **update_balance_allowance**: Update balance/allowance metadata with the exchange
-- **approve_allowances**: Grant the USDC and Conditional Tokens approvals required for trading
+## 📦 Installation
 
-**Note**: Without a private key configured, only read-only market data tools are available.
+### 🚀 Using npx (Recommended)
 
-## 🚀 Quick Start
-
-This MCP server is published on npm and can be used directly with `npx` - no installation required!
-
-### 📦 Using with npx (Recommended)
-
-The easiest way to use this MCP server is with `pnpx`, which runs the package directly from npm registry:
- 
-#### Read-Only Mode (Market Data Only)
-```json
-{
-  "mcpServers": {
-    "polymarket": {
-      "command": "pnpx",
-      "args": ["@iqai/mcp-polymarket"]
-    }
-  }
-}
-```
-
-#### Trading Mode (With Private Key)
-```json
-{
-  "mcpServers": {
-    "polymarket": {
-      "command": "pnpx",
-      "args": ["@iqai/mcp-polymarket"],
-      "env": {
-        "POLYMARKET_PRIVATE_KEY": "your_private_key_here"
-      }
-    }
-  }
-}
-```
-
-Optionally, you can configure a custom Polygon RPC endpoint (recommended for reliability):
-
-```json
-{
-   "mcpServers": {
-      "polymarket": {
-         "command": "pnpx",
-         "args": ["@iqai/mcp-polymarket"],
-         "env": {
-            "POLYMARKET_PRIVATE_KEY": "your_private_key_here",
-            "POLYMARKET_RPC_URL": "https://polygon-mainnet.g.alchemy.com/v2/<YOUR_KEY>"
-         }
-      }
-   }
-}
-```
-
-### 🔧 Manual Installation (For Development)
-
-If you want to modify the server or contribute to development:
+To use this server without installing it globally:
 
 ```bash
-git clone https://github.com/IQAIcom/mcp-polymarket
+npx @iqai/mcp-polymarket
+```
+
+### 🔧 Build from Source
+
+```bash
+git clone https://github.com/IQAIcom/mcp-polymarket.git
 cd mcp-polymarket
 pnpm install
 pnpm run build
 ```
 
-## ⚙️ Configuration
+## ⚡ Running with an MCP Client
 
-The server runs on stdio transport and can be integrated with MCP-compatible clients like Claude Desktop, Cline, or any other MCP-compatible AI agent system.
+Add the following configuration to your MCP client settings (e.g., `claude_desktop_config.json`).
 
-### For Claude Desktop
-
-Add this to your Claude Desktop configuration file:
-
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-
-If you've cloned and built the project locally, you can use it with an absolute path:
+### 📋 Minimal Configuration (Read-Only)
 
 ```json
 {
   "mcpServers": {
     "polymarket": {
-      "command": "node",
-      "args": ["/absolute/path/to/mcp-polymarket/build/index.js"],
+      "command": "npx",
+      "args": ["-y", "@iqai/mcp-polymarket"]
+    }
+  }
+}
+```
+
+### ⚙️ Advanced Configuration (With Trading)
+
+```json
+{
+  "mcpServers": {
+    "polymarket": {
+      "command": "npx",
+      "args": ["-y", "@iqai/mcp-polymarket"],
       "env": {
-        "POLYMARKET_PRIVATE_KEY": "your_private_key_here"
+        "POLYMARKET_PRIVATE_KEY": "your_private_key_here",
+        "POLYMARKET_RPC_URL": "https://polygon-mainnet.g.alchemy.com/v2/<YOUR_KEY>"
       }
     }
   }
 }
 ```
 
-## 🔐 Security & Privacy
+## 🔐 Configuration (Environment Variables)
 
-### Private Key Security
-
-When using the trading features, you'll need to provide your Ethereum wallet's private key. **Here's what you need to know:**
-
-✅ **Your Key Stays Safe:**
-- The MCP server runs **entirely on your local machine** in a Node.js environment
-- Your private key **never leaves your computer**
-- No data is sent to any third-party servers except Polymarket's official API endpoints
-- The key is only stored in memory during operation and is never written to disk
-
-⚠️ **Important Security Practices:**
-- **Never commit** your private key to version control
-- **Never share** your configuration file containing the private key
-- Only use this on **trusted, secure machines**
-- Consider using a **dedicated wallet** for trading with limited funds
-- Keep your operating system and Node.js updated with security patches
-
-🔒 **How It Works:**
-1. You configure your private key in your MCP client's config file
-2. The key is passed as an environment variable to the Node.js process
-3. The server uses it to sign transactions locally on your machine
-4. Signed transactions are sent to Polymarket's API
-5. When the process ends, the key is cleared from memory
-
-**Without a private key configured, only read-only market data tools are available.**
-
-### Approvals and Allowances
-
-This server does not auto-approve tokens. When an operation requires approvals, the tool returns a structured "approval required" response explaining:
-
-- Why approvals are needed and which contracts are involved (USDC, CTF, Exchange)
-- Which approvals are missing for your wallet
-- The next step: run the `approve_allowances` tool
-
-After running `approve_allowances`, simply retry your original action. Approvals are standard ERC20/ERC1155 permissions and can be revoked any time in your wallet.
+| Variable | Required | Description | Default |
+| :--- | :--- | :--- | :--- |
+| `POLYMARKET_PRIVATE_KEY` | No | Private key for trading (enables trading tools) | - |
+| `POLYMARKET_RPC_URL` | No | Polygon RPC URL for transactions | `https://polygon-rpc.com` |
 
 ## 💡 Usage Examples
 
-Once configured, you can use the tools through your MCP client. Here are some example queries:
+### 🔍 Market Discovery
+*   "What are the most active prediction markets on Polymarket right now?"
+*   "Search for markets related to 'Bitcoin' or 'BTC'."
+*   "Find markets in the 'Crypto' category."
+*   "What events are trending on Polymarket today?"
 
-### 🤖 Sample Questions for AI Agents
+### 📊 Analytics & Pricing
+*   "Show me the order book for the 2024 election market."
+*   "What is the current probability implied by the price of the 'Yes' token?"
+*   "Get detailed information about the 'will-trump-win-2024' market."
 
-Your AI agent can now answer questions and perform actions like:
+### 💼 Portfolio & Trading (Requires Private Key)
+*   "What's my current USDC balance and allowance?"
+*   "Show me all my open orders across all markets."
+*   "Place a buy order for 100 shares at 0.65 price."
+*   "Cancel all my open orders on this market."
 
-**Market Intelligence Questions:**
-- "What are the most active prediction markets right now?"
-- "Show me all markets related to artificial intelligence"
-- "What's the current probability that Bitcoin will reach $100k by end of year?"
-- "Find all markets in the 'Crypto' category"
-- "What events are trending on Polymarket today?"
+## 🛠️ MCP Tools
 
-**Market Analysis Questions:**
-- "What's the order book depth for the 2024 election market?"
-- "Show me the bid-ask spread for [specific market]"
-- "What are all the available tags I can filter markets by?"
-- "Get detailed information about the 'will-spacex-reach-mars' market"
+<!-- AUTO-GENERATED TOOLS START -->
 
-**Trading & Portfolio Questions** (requires private key):
-- "What's my current USDC balance and allowance?"
-- "Show me all my open orders across all markets"
-- "What's my trading history for the past week?"
-- "Place a limit buy order for 50 shares at 0.60 on [market]"
-- "Cancel all my open orders on [market]"
-- "What's my profit/loss on my recent trades?"
+### `approve_allowances`
+Grant the USDC and Conditional Tokens approvals required to trade on Polymarket. Automatically approves only the contracts that don't already have approvals set. Includes both regular and NegRisk markets. These approvals are standard ERC20/ERC1155 approvals, revocable at any time in your wallet.
 
-### 📖 Detailed Examples
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `waitForConfirmations` | integer |  | How many confirmations to wait before returning (0 = return immediately after broadcasting). Default: 0 |
 
-#### Market Data Examples (Always Available)
+### `cancel_all_orders`
+Cancel all open orders for the authenticated account.
 
-1. **Get a specific market**:
-   ```
-   Get information about the market with slug "will-trump-win-2024"
-   ```
+_No parameters_
 
-2. **Search markets**:
-   ```
-   Search for markets related to "elections"
-   ```
+### `cancel_order`
+Cancel a specific order by its ID.
 
-3. **List active markets**:
-   ```
-   Show me the 10 most recent active markets
-   ```
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `orderId` | string | ✅ | The unique identifier of the order to cancel |
 
-4. **Get order book**:
-   ```
-   Show me the order book for token ID "123456..."
-   ```
+### `get_all_tags`
+Get a list of all available tags for categorizing markets.
 
-#### Trading Examples (Requires POLYMARKET_PRIVATE_KEY)
+_No parameters_
 
-1. **Check your balance**:
-   ```
-   Check my COLLATERAL balance
-   ```
+### `get_balance_allowance`
+Get balance and allowance information for the authenticated account. Can check COLLATERAL or CONDITIONAL tokens.
 
-2. **Place a limit order**:
-   ```
-   Place a buy order for 100 shares at 0.65 price on token ID "123456..."
-   ```
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `assetType` | string | ✅ | Asset type to check balance for: COLLATERAL or CONDITIONAL |
+| `tokenID` | string |  | Optional token ID for conditional token balance |
 
-3. **View open orders**:
-   ```
-   Show me all my open orders
-   ```
+### `get_event_by_slug`
+Get detailed information about a specific event by its slug identifier. Events group multiple related markets.
 
-4. **Cancel an order**:
-   ```
-   Cancel order with ID "0x123..."
-   ```
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `slug` | string | ✅ | The event slug identifier |
 
-5. **Grant approvals (when prompted)**:
-   ```
-   Approve required allowances for trading
-   ```
-   The agent will typically prompt to run this if approvals are missing, then retry your action.
+### `get_market_by_slug`
+Get detailed information about a specific market by its slug identifier. The slug can be extracted from the Polymarket URL.
 
-## 📚 API Documentation
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `slug` | string | ✅ | The market slug identifier (e.g., 'will-trump-win-2024') |
 
-This server uses the following Polymarket APIs:
+### `get_markets_by_tag`
+Get markets filtered by a specific tag ID. Useful for finding markets in specific categories.
 
-- **Gamma Markets API**: For market data retrieval
-  - Base URL: `https://gamma-api.polymarket.com`
-  - [Documentation](https://docs.polymarket.com/developers/gamma-markets-api/overview)
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `tag_id` | string | ✅ |  | The tag ID to filter by |
+| `limit` | number |  | 20 | Number of markets to return (default: 20) |
+| `closed` | boolean |  | false | Include closed markets (default: false) |
 
-- **CLOB API**: For order book and trading
-  - Base URL: `https://clob.polymarket.com`
-  - [Documentation](https://docs.polymarket.com/developers/CLOB/orders/orders)
+### `get_open_orders`
+Get all open orders for the authenticated account. Can optionally filter by market.
 
-## 🛠️ Development
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `market` | string |  | Optional market address to filter orders by |
 
-### Build
+### `get_order`
+Get details of a specific order by its ID.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `orderId` | string | ✅ | The unique identifier of the order |
+
+### `get_order_book`
+Get the current order book for a specific market token. Shows all active buy and sell orders.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `token_id` | string | ✅ | The token ID for the market outcome |
+
+### `get_trade_history`
+Get trade history for the authenticated account. Can optionally filter by market or maker address.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `market` | string |  | Optional market address to filter trades by |
+| `maker_address` | string |  | Optional maker address to filter trades by |
+
+### `list_active_markets`
+List all currently active markets with pagination. Returns markets that are not yet closed.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `limit` | number |  | 20 | Number of markets to return (default: 20, max: 100) |
+| `offset` | number |  | 0 | Number of markets to skip for pagination (default: 0) |
+
+### `place_market_order`
+Place a market order that executes immediately at current market price. IMPORTANT: For BUY orders, amount is the dollar amount ($USD) you want to spend. For SELL orders, amount is the number of shares to sell. Example: amount=5, side=BUY means 'spend $5 to buy shares at market price'. Minimum $1 for BUY orders.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tokenId` | string | ✅ | The token ID of the market outcome to trade |
+| `amount` | number | ✅ | BUY orders: Dollar amount ($) to spend. SELL orders: Number of shares to sell. Minimum $1 for BUY orders. |
+| `side` | string | ✅ | The side of the order: BUY or SELL |
+| `orderType` | string |  | Order type: FOK (Fill or Kill) or FAK (Fill and Kill). Default: FOK |
+
+### `place_order`
+Place a limit order on Polymarket at a specific price. Specify the number of shares (size) and price (0-1). For both BUY and SELL, you specify the number of shares you want to trade. Example: size=10, price=0.6 means buy/sell 10 shares at $0.60 per share (total: $6).
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `tokenId` | string | ✅ | The token ID of the market outcome to trade |
+| `price` | number | ✅ | The limit price for the order (between 0 and 1). This is the probability/price per share. |
+| `size` | number | ✅ | Number of shares to trade. For both BUY and SELL orders, this is always the number of outcome tokens/shares. |
+| `side` | string | ✅ | The side of the order: BUY or SELL |
+| `orderType` | string |  | Order type: GTC (Good Till Cancelled) or GTD (Good Till Date). Default: GTC |
+
+### `redeem_positions`
+Redeem (claim) winnings from a resolved Polymarket prediction market. Use this to collect USDC from positions in markets that have been settled. For regular markets, you need the conditionId. For negative risk markets, you also need the tokenId and should set negRisk=true. The market must be resolved before redemption is possible.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `conditionId` | string | ✅ |  | The condition ID (market ID) for the resolved market. This is typically a 32-byte hex string. |
+| `tokenId` | string |  |  | The token ID of the position to redeem. Required for negRisk markets, optional for regular markets. |
+| `outcomeIndex` | number |  |  | The outcome index: 0 for Yes/first outcome, 1 for No/second outcome. Used for negRisk markets to determine which tokens to redeem. |
+| `negRisk` | boolean |  | false | Whether this is a negative risk market. Negative risk markets use the NegRiskAdapter contract for redemption. Default: false |
+
+### `search_markets`
+Search for markets, events, and profiles using text search.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `query` | string | ✅ | Search query text |
+
+### `update_balance_allowance`
+Update balance and allowance for the authenticated account. Required before trading.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `assetType` | string | ✅ | Asset type to update allowance for: COLLATERAL or CONDITIONAL |
+| `tokenID` | string |  | Optional token ID for conditional token |
+
+<!-- AUTO-GENERATED TOOLS END -->
+
+## 👨‍💻 Development
+
+### 🏗️ Build Project
 ```bash
 pnpm run build
 ```
 
-### Watch Mode
+### 👁️ Development Mode (Watch)
 ```bash
 pnpm run watch
 ```
 
-### Linting and Formatting
-This project uses Biome for code quality:
-
+### ✅ Linting & Formatting
 ```bash
-pnpm run check    # Check and fix issues
-pnpm run lint     # Lint only
-pnpm run format   # Format only
+pnpm run lint
+pnpm run format
 ```
 
-### Release Management
+### 📁 Project Structure
+*   `src/tools/`: Individual tool definitions
+*   `src/services/`: API client and business logic
+*   `src/index.ts`: Server entry point
 
-This project uses [Changesets](https://github.com/changesets/changesets) for version management and automated releases.
+## 📚 Resources
 
-#### Creating a changeset
-When you make changes that should trigger a release, create a changeset:
-
-```bash
-pnpm changeset
-```
-
-This will prompt you to:
-1. Select which packages to include (for this single package, just select it)
-2. Choose the type of change (patch, minor, or major)
-3. Write a description of the changes
-
-#### Release Process
-1. Create and merge your PR with the changeset
-2. The GitHub Action will automatically create a "Release PR" 
-3. When the Release PR is merged, it will:
-   - Update the version in `package.json`
-   - Generate/update `CHANGELOG.md`
-   - Create a git tag
-   - Publish to npm (if configured)
-
-#### Manual Release (for maintainers)
-```bash
-pnpm run version  # Updates version and changelog
-pnpm run release  # Builds and publishes to npm
-```
-
-## 📁 Project Structure
-
-```
-mcp-polymarket/
-├── src/
-│   ├── services/          # Service layer
-│   │   ├── api.ts         # Gamma API client
-│   │   ├── config.ts      # Configuration management
-│   │   ├── trading.ts     # Trading client (CLOB)
-│   │   └── approvals.ts   # Approvals service (check/assert/approve)
-│   ├── tools/             # MCP tool implementations
-│   │   ├── cancel-all-orders.ts
-│   │   ├── cancel-order.ts
-│   │   ├── get-all-tags.ts
-│   │   ├── get-balance-allowance.ts
-│   │   ├── approve-allowances.ts
-│   │   └── ...            # Additional tool files
-│   ├── index.ts           # Main MCP server
-│   
-├── dist/                  # Compiled JavaScript output
-├── .changeset/            # Changeset configuration
-├── .github/               # GitHub Actions and templates
-├── node_modules/          # Dependencies
-├── .env.example           # Environment variables template
-├── biome.json             # Biome configuration
-├── package.json           # Project dependencies and scripts
-├── package-lock.json      # Lockfile
-├── pnpm-lock.yaml         # pnpm lockfile
-├── tsconfig.json          # TypeScript configuration
-└── README.md              # This file
-```
-
-## 🔧 Technologies
-
-- **TypeScript**: Type-safe development
-- **fastmcp**: MCP server implementation
-- **@polymarket/clob-client**: Polymarket trading client
-- **Biome**: Fast linter and formatter
-
-## 🎯 Trading Setup (Advanced)
-
-To enable trading functionality:
-
-1. **Set up a wallet with a private key**
-   - Create or use an existing Ethereum wallet
-   - Export the private key (never share this!)
-
-2. **Fund the wallet with USDC on Polygon**
-   - Bridge USDC to Polygon network
-   - Ensure you have enough for trading + gas fees
-
-3. **Configure the private key**
-   - Add `POLYMARKET_PRIVATE_KEY` to your MCP server configuration
-   - The server will automatically enable trading tools when detected
-
-4. **Allowances and approvals**
-   - The server now automatically checks and sets the required USDC and Conditional Tokens approvals during initialization (first run may take a few seconds while transactions confirm)
-   - The `update_balance_allowance` tool remains available if you want to manage allowances manually
-
-### Environment Variables
-
-The following environment variables are supported:
-
-- `POLYMARKET_PRIVATE_KEY` (required for trading): Private key of the wallet used for trading
-- `POLYMARKET_RPC_URL` (optional): Polygon RPC URL to broadcast approval transactions. Defaults to `https://polygon-rpc.com`
-
-**Note on Dependencies**: This project uses `@polymarket/clob-client` which has transitive dependencies with known vulnerabilities in older versions of `axios`. These vulnerabilities (SSRF, CSRF) are mitigated in this use case because:
-- The server only connects to trusted Polymarket API endpoints
-- It runs locally on user machines, not as a public server
-- All API interactions are authenticated and controlled
-- Your private key never leaves your machine
+*   [Polymarket API Documentation](https://docs.polymarket.com)
+*   [Model Context Protocol (MCP)](https://modelcontextprotocol.io)
+*   [Polymarket Platform](https://polymarket.com)
 
 ## ⚠️ Disclaimer
 
-This is an unofficial tool and is not affiliated with Polymarket. Use at your own risk. Always verify transactions and understand the risks involved in prediction market trading.
+This project is an unofficial tool and is not directly affiliated with Polymarket. It interacts with financial and prediction market data. Users should exercise caution and verify all data independently. Trading in prediction markets involves risk.
+
+## 📄 License
+
+[MIT](LICENSE)
