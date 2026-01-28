@@ -110,7 +110,7 @@ Grant the USDC and Conditional Tokens approvals required to trade on Polymarket.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `waitForConfirmations` | integer |  | How many confirmations to wait before returning (0 = return immediately after broadcasting). Default: 0 |
+| `waitForConfirmations` | number |  | How many confirmations to wait before returning (0 = return immediately after broadcasting). Default: 0 |
 
 ### `cancel_all_orders`
 Cancel all open orders for the authenticated account.
@@ -134,7 +134,7 @@ Get balance and allowance information for the authenticated account. Can check C
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `assetType` | string | ✅ | Asset type to check balance for: COLLATERAL or CONDITIONAL |
+| `assetType` | enum | ✅ | Asset type to check balance for: COLLATERAL or CONDITIONAL |
 | `tokenID` | string |  | Optional token ID for conditional token balance |
 
 ### `get_event_by_slug`
@@ -204,8 +204,8 @@ Place a market order that executes immediately at current market price. IMPORTAN
 |-----------|------|----------|-------------|
 | `tokenId` | string | ✅ | The token ID of the market outcome to trade |
 | `amount` | number | ✅ | BUY orders: Dollar amount ($) to spend. SELL orders: Number of shares to sell. Minimum $1 for BUY orders. |
-| `side` | string | ✅ | The side of the order: BUY or SELL |
-| `orderType` | string |  | Order type: FOK (Fill or Kill) or FAK (Fill and Kill). Default: FOK |
+| `side` | enum | ✅ | The side of the order: BUY or SELL |
+| `orderType` | enum |  | Order type: FOK (Fill or Kill) or FAK (Fill and Kill). Default: FOK |
 
 ### `place_order`
 Place a limit order on Polymarket at a specific price. Specify the number of shares (size) and price (0-1). For both BUY and SELL, you specify the number of shares you want to trade. Example: size=10, price=0.6 means buy/sell 10 shares at $0.60 per share (total: $6).
@@ -215,8 +215,8 @@ Place a limit order on Polymarket at a specific price. Specify the number of sha
 | `tokenId` | string | ✅ | The token ID of the market outcome to trade |
 | `price` | number | ✅ | The limit price for the order (between 0 and 1). This is the probability/price per share. |
 | `size` | number | ✅ | Number of shares to trade. For both BUY and SELL orders, this is always the number of outcome tokens/shares. |
-| `side` | string | ✅ | The side of the order: BUY or SELL |
-| `orderType` | string |  | Order type: GTC (Good Till Cancelled) or GTD (Good Till Date). Default: GTC |
+| `side` | enum | ✅ | The side of the order: BUY or SELL |
+| `orderType` | enum |  | Order type: GTC (Good Till Cancelled) or GTD (Good Till Date). Default: GTC |
 
 ### `redeem_positions`
 Redeem (claim) winnings from a resolved Polymarket prediction market. Use this to collect USDC from positions in markets that have been settled. For regular markets, you need the conditionId. For negative risk markets, you also need the tokenId and should set negRisk=true. The market must be resolved before redemption is possible.
@@ -225,7 +225,7 @@ Redeem (claim) winnings from a resolved Polymarket prediction market. Use this t
 |-----------|------|----------|---------|-------------|
 | `conditionId` | string | ✅ |  | The condition ID (market ID) for the resolved market. This is typically a 32-byte hex string. |
 | `tokenId` | string |  |  | The token ID of the position to redeem. Required for negRisk markets, optional for regular markets. |
-| `outcomeIndex` | number |  |  | The outcome index: 0 for Yes/first outcome, 1 for No/second outcome. Used for negRisk markets to determine which tokens to redeem. |
+| `outcomeIndex` | literal |  |  | The outcome index: 0 for Yes/first outcome, 1 for No/second outcome. Used for negRisk markets to determine which tokens to redeem. |
 | `negRisk` | boolean |  | false | Whether this is a negative risk market. Negative risk markets use the NegRiskAdapter contract for redemption. Default: false |
 
 ### `search_markets`
@@ -240,7 +240,7 @@ Update balance and allowance for the authenticated account. Required before trad
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `assetType` | string | ✅ | Asset type to update allowance for: COLLATERAL or CONDITIONAL |
+| `assetType` | enum | ✅ | Asset type to update allowance for: COLLATERAL or CONDITIONAL |
 | `tokenID` | string |  | Optional token ID for conditional token |
 
 <!-- AUTO-GENERATED TOOLS END -->
