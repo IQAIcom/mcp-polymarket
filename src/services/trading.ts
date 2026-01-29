@@ -39,13 +39,11 @@ export class PolymarketTrading {
 	private marketParamsCache: Map<string, MarketParams> = new Map();
 
 	constructor(config: TradingConfig) {
-		// Detect signature type before merging config
-		const detectedSignatureType = this.detectSignatureType(config);
 		this.config = {
 			chainId: 137, // Polygon mainnet
 			...config,
 			// Apply detected signature type AFTER spread, so it's not overwritten by undefined
-			signatureType: config.signatureType ?? detectedSignatureType,
+			signatureType: this.detectSignatureType(config),
 		};
 	}
 
@@ -86,11 +84,11 @@ export class PolymarketTrading {
 		const cfg = getConfig(this.config);
 		// Use StaticJsonRpcProvider to completely skip network auto-detection
 		// This prevents "could not detect network" errors from flaky RPCs
-		const provider = new providers.StaticJsonRpcProvider(cfg.rpcUrl, cfg.chainId || 137);
+		const provider = new providers.StaticJsonRpcProvider(cfg.rpcUrl, cfg.chainId);
 		const ethersSigner = new Wallet(this.config.privateKey, provider);
 		this.signer = ethersSigner;
 		const host = cfg.host;
-		const tempClient = new ClobClient(host, cfg.chainId || 137, ethersSigner);
+		const tempClient = new ClobClient(host, cfg.chainId, ethersSigner);
 		// Attempt to first derive, and on failure create a new
 		// There seems to be an issue with createOrDeriveApiKey()
 		// See: https://github.com/Polymarket/clob-client/issues/202
@@ -155,7 +153,7 @@ export class PolymarketTrading {
 
 	/**
 	 * Throw a structured error if approvals are missing.
-	 * When using a funder/proxy wallet (signature type 2), check the funder's approvals.
+	 * Skips the approval check for funder/proxy wallets (signature type 2), as approvals are managed elsewhere.
 	 */
 	private async assertApprovals(): Promise<void> {
 		// When using proxy wallet (funder), skip approval check since

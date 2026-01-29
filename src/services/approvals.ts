@@ -254,7 +254,7 @@ function getSignerFromEnv(): Wallet {
 		);
 	}
 	// Use StaticJsonRpcProvider to completely skip network auto-detection
-	const provider = new providers.StaticJsonRpcProvider(cfg.rpcUrl, cfg.chainId || 137);
+	const provider = new providers.StaticJsonRpcProvider(cfg.rpcUrl, cfg.chainId);
 	return new Wallet(cfg.privateKey, provider);
 }
 
