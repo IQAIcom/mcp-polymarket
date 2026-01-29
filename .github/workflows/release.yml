@@ -1,11 +1,9 @@
-name: Release (Template - Manual Trigger)
+name: Release
 
-# To enable, change to e.g.:
-# on:
-#   push:
-#     branches:
-#       - main
-on: workflow_dispatch
+on:
+  push:
+    branches:
+      - main
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
