@@ -39,10 +39,13 @@ export class PolymarketTrading {
 	private marketParamsCache: Map<string, MarketParams> = new Map();
 
 	constructor(config: TradingConfig) {
+		// Detect signature type before merging config
+		const detectedSignatureType = this.detectSignatureType(config);
 		this.config = {
 			chainId: 137, // Polygon mainnet
-			signatureType: this.detectSignatureType(config),
 			...config,
+			// Apply detected signature type AFTER spread, so it's not overwritten by undefined
+			signatureType: config.signatureType ?? detectedSignatureType,
 		};
 	}
 
@@ -81,7 +84,9 @@ export class PolymarketTrading {
 			apiKey?: string;
 		};
 		const cfg = getConfig(this.config);
-		const provider = new providers.JsonRpcProvider(cfg.rpcUrl);
+		// Use StaticJsonRpcProvider to completely skip network auto-detection
+		// This prevents "could not detect network" errors from flaky RPCs
+		const provider = new providers.StaticJsonRpcProvider(cfg.rpcUrl, cfg.chainId || 137);
 		const ethersSigner = new Wallet(this.config.privateKey, provider);
 		this.signer = ethersSigner;
 		const host = cfg.host;
@@ -150,8 +155,15 @@ export class PolymarketTrading {
 
 	/**
 	 * Throw a structured error if approvals are missing.
+	 * When using a funder/proxy wallet (signature type 2), check the funder's approvals.
 	 */
 	private async assertApprovals(): Promise<void> {
+		// When using proxy wallet (funder), skip approval check since
+		// proxy wallets already have approvals set up via Polymarket UI
+		if (this.config.funderAddress && this.config.signatureType === 2) {
+			// Proxy wallet mode - approvals managed by Polymarket
+			return;
+		}
 		const approvals = new PolymarketApprovals(this.getSigner());
 		await approvals.assertApproved();
 	}

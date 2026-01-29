@@ -55,7 +55,8 @@ export class PolymarketRedemption {
 				"POLYMARKET_PRIVATE_KEY environment variable is required for redemption",
 			);
 		}
-		this.provider = new providers.JsonRpcProvider(cfg.rpcUrl);
+		// Use StaticJsonRpcProvider to completely skip network auto-detection
+		this.provider = new providers.StaticJsonRpcProvider(cfg.rpcUrl, cfg.chainId || 137);
 		this.signer = signer ?? new Wallet(cfg.privateKey, this.provider);
 	}
 

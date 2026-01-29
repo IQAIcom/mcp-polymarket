@@ -253,7 +253,8 @@ function getSignerFromEnv(): Wallet {
 			"POLYMARKET_PRIVATE_KEY environment variable is required for approvals",
 		);
 	}
-	const provider = new providers.JsonRpcProvider(cfg.rpcUrl);
+	// Use StaticJsonRpcProvider to completely skip network auto-detection
+	const provider = new providers.StaticJsonRpcProvider(cfg.rpcUrl, cfg.chainId || 137);
 	return new Wallet(cfg.privateKey, provider);
 }
 
