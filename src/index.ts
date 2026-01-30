@@ -40,6 +40,7 @@ async function main() {
 		server.addTool(tools.getBalanceAllowanceTool);
 		server.addTool(tools.updateBalanceAllowanceTool);
 		server.addTool(tools.redeemPositionsTool);
+		server.addTool(tools.getPositionsTool);
 
 		console.log(
 			"✅ Trading features enabled (POLYMARKET_PRIVATE_KEY is configured)",
