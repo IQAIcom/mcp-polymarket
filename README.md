@@ -181,6 +181,14 @@ Get the current order book for a specific market token. Shows all active buy and
 |-----------|------|----------|-------------|
 | `token_id` | string | ✅ | The token ID for the market outcome |
 
+### `get_positions`
+Get all positions for a wallet address with current values. Returns position details including size, current price, current value, and P&L. Uses the Polymarket Data API for accurate position valuation.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `user` | string |  |  | Wallet address to fetch positions for. If not provided, uses POLYMARKET_FUNDER env var. |
+| `limit` | number |  | 100 | Maximum number of positions to return (default: 100) |
+
 ### `get_trade_history`
 Get trade history for the authenticated account. Can optionally filter by market or maker address.
 
