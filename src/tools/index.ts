@@ -9,6 +9,7 @@ export { getMarketsByTagTool } from "./get-markets-by-tag.js";
 export { getOpenOrdersTool } from "./get-open-orders.js";
 export { getOrderTool } from "./get-order.js";
 export { getOrderBookTool } from "./get-order-book.js";
+export { getPositionsTool } from "./get-positions.js";
 export { getTradeHistoryTool } from "./get-trade-history.js";
 export { listActiveMarketsTool } from "./list-active-markets.js";
 export { placeMarketOrderTool } from "./place-market-order.js";
