@@ -187,37 +187,37 @@ export class PolymarketApprovals {
 			{
 				key: "USDC_ALLOWANCE_FOR_CTF",
 				fn: () => usdc.approve(CTF_ADDRESS, constants.MaxUint256),
-				label: "USDC→CTF",
+				label: "USDC->CTF",
 			},
 			{
 				key: "USDC_ALLOWANCE_FOR_EXCHANGE",
 				fn: () => usdc.approve(EXCHANGE_ADDRESS, constants.MaxUint256),
-				label: "USDC→Exchange",
+				label: "USDC->Exchange",
 			},
 			{
 				key: "CTF_APPROVAL_FOR_EXCHANGE",
 				fn: () => ctf.setApprovalForAll(EXCHANGE_ADDRESS, true),
-				label: "CTF→Exchange",
+				label: "CTF->Exchange",
 			},
 			{
 				key: "USDC_ALLOWANCE_FOR_NEG_RISK_EXCHANGE",
 				fn: () => usdc.approve(NEG_RISK_EXCHANGE_ADDRESS, constants.MaxUint256),
-				label: "USDC→NegRiskExchange",
+				label: "USDC->NegRiskExchange",
 			},
 			{
 				key: "USDC_ALLOWANCE_FOR_NEG_RISK_ADAPTER",
 				fn: () => usdc.approve(NEG_RISK_ADAPTER_ADDRESS, constants.MaxUint256),
-				label: "USDC→NegRiskAdapter",
+				label: "USDC->NegRiskAdapter",
 			},
 			{
 				key: "CTF_APPROVAL_FOR_NEG_RISK_EXCHANGE",
 				fn: () => ctf.setApprovalForAll(NEG_RISK_EXCHANGE_ADDRESS, true),
-				label: "CTF→NegRiskExchange",
+				label: "CTF->NegRiskExchange",
 			},
 			{
 				key: "CTF_APPROVAL_FOR_NEG_RISK_ADAPTER",
 				fn: () => ctf.setApprovalForAll(NEG_RISK_ADAPTER_ADDRESS, true),
-				label: "CTF→NegRiskAdapter",
+				label: "CTF->NegRiskAdapter",
 			},
 		] as const;
 
@@ -226,7 +226,7 @@ export class PolymarketApprovals {
 			if (current.missing.includes(key)) {
 				const hash = await this.sendTx(fn, nonce++, waitConfs);
 				txHashes.push(hash);
-				console.log(`Approved ${label}: ${hash}`);
+				process.stderr.write(`Approved ${label}: ${hash}\n`);
 			}
 		}
 

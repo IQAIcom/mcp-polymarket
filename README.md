@@ -63,7 +63,7 @@ Add the following configuration to your MCP client settings (e.g., `claude_deskt
       "args": ["-y", "@iqai/mcp-polymarket"],
       "env": {
         "POLYMARKET_PRIVATE_KEY": "your_private_key_here",
-        "POLYMARKET_RPC_URL": "https://polygon-mainnet.g.alchemy.com/v2/<YOUR_KEY>"
+        "POLYGON_RPC_URL": "https://polygon-mainnet.g.alchemy.com/v2/<YOUR_KEY>"
       }
     }
   }
@@ -75,7 +75,7 @@ Add the following configuration to your MCP client settings (e.g., `claude_deskt
 | Variable | Required | Description | Default |
 | :--- | :--- | :--- | :--- |
 | `POLYMARKET_PRIVATE_KEY` | No | Private key for trading (enables trading tools) | - |
-| `POLYMARKET_RPC_URL` | No | Polygon RPC URL for transactions | `https://polygon-rpc.com` |
+| `POLYGON_RPC_URL` | No | Polygon RPC URL for transactions | `https://polygon-rpc.com` |
 | `CLOB_API_BASE` | No | Polymarket CLOB API base URL | `https://clob.polymarket.com` |
 | `CHAIN_ID` | No | Blockchain network chain ID | `137` (Polygon) |
 | `SIGNATURE_TYPE` | No | Signature type for signing transactions | `2` |

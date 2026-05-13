@@ -440,7 +440,7 @@ function renderSchema(jsonSchema) {
 		const type = Array.isArray(prop.type)
 			? prop.type.join(" | ")
 			: (prop.type ?? "unknown");
-		const requiredStr = required.has(key) ? "✅" : "";
+		const requiredStr = required.has(key) ? "true" : "false";
 		const description = prop.description ?? "";
 		const defaultVal = prop.default !== undefined ? String(prop.default) : "";
 

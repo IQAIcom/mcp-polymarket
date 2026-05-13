@@ -112,11 +112,11 @@ export class PolymarketTrading {
 			cfg.funderAddress,
 		);
 
-		console.log("✓ Polymarket trading client initialized");
-		console.log(`  - Signer: ${await ethersSigner.getAddress()}`);
-		console.log(`  - Signature Type: ${cfg.signatureType}`);
+		process.stderr.write("Polymarket trading client initialized");
+		process.stderr.write(`  - Signer: ${await ethersSigner.getAddress()}` + "\n");
+		process.stderr.write(`  - Signature Type: ${cfg.signatureType}` + "\n");
 		if (cfg.funderAddress) {
-			console.log(`  - Funder/Proxy: ${cfg.funderAddress}`);
+			process.stderr.write(`  - Funder/Proxy: ${cfg.funderAddress}` + "\n");
 		}
 	}
 
@@ -253,11 +253,11 @@ export class PolymarketTrading {
 
 		const client = this.getClient();
 
-		console.log(`📝 Placing ${args.side} order:`);
-		console.log(`   Token: ${args.tokenId}`);
-		console.log(`   Price: ${args.price}`);
-		console.log(`   Size: ${args.size}`);
-		console.log(
+		process.stderr.write(`Placing ${args.side} order:` + "\n");
+		process.stderr.write(`   Token: ${args.tokenId}` + "\n");
+		process.stderr.write(`   Price: ${args.price}` + "\n");
+		process.stderr.write(`   Size: ${args.size}` + "\n");
+		process.stderr.write(
 			`   Market: negRisk=${marketParams.negRisk}, tickSize=${marketParams.tickSize}`,
 		);
 
@@ -304,10 +304,10 @@ export class PolymarketTrading {
 
 		const client = this.getClient();
 
-		console.log(`🚀 Placing ${args.side} market order:`);
-		console.log(`   Token: ${args.tokenId}`);
-		console.log(`   Amount: ${args.amount}`);
-		console.log(
+		process.stderr.write(`Placing ${args.side} market order:` + "\n");
+		process.stderr.write(`   Token: ${args.tokenId}` + "\n");
+		process.stderr.write(`   Amount: ${args.amount}` + "\n");
+		process.stderr.write(
 			`   Market: negRisk=${marketParams.negRisk}, tickSize=${marketParams.tickSize}`,
 		);
 

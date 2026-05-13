@@ -10,7 +10,7 @@ import { tradeApi } from "./services/trading.js";
  */
 async function placeMarketOrder() {
 	try {
-		console.log("🚀 Placing market order...");
+		console.log("Placing market order...");
 
 		// Market order parameters
 		const params = {
@@ -20,17 +20,17 @@ async function placeMarketOrder() {
 			amount: 1, // For BUY orders, this is the dollar amount ($USD) to spend
 		};
 
-		console.log("📋 Order parameters:", JSON.stringify(params, null, 2));
+		console.log("Order parameters:", JSON.stringify(params, null, 2));
 
 		// Execute the market order
 		const result = await tradeApi.placeMarketOrder(params);
 
-		console.log("✅ Market order placed successfully!");
-		console.log("📊 Result:", JSON.stringify(result, null, 2));
+		console.log("Market order placed successfully!");
+		console.log("Result:", JSON.stringify(result, null, 2));
 
 		return result;
 	} catch (error) {
-		console.error("❌ Error placing market order:", error);
+		console.error("Error placing market order:", error);
 
 		// Check if it's an approval error
 		if (error && typeof error === "object" && "message" in error) {
@@ -44,10 +44,10 @@ async function placeMarketOrder() {
 // Run the script
 placeMarketOrder()
 	.then(() => {
-		console.log("🎉 Script completed successfully");
+		console.log("Script completed successfully");
 		process.exit(0);
 	})
 	.catch((error) => {
-		console.error("💥 Script failed:", error);
+		console.error("Script failed:", error);
 		process.exit(1);
 	});

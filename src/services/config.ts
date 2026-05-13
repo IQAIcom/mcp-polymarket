@@ -32,7 +32,7 @@ export function getConfig(overrides: Partial<BaseConfig> = {}): BaseConfig {
 
 	const rpcUrl =
 		overrides.rpcUrl ??
-		process.env.POLYMARKET_RPC_URL ??
+		process.env.POLYGON_RPC_URL ??
 		"https://polygon-rpc.com";
 
 	const privateKey = overrides.privateKey ?? process.env.POLYMARKET_PRIVATE_KEY;
