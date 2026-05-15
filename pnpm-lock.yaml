@@ -23,9 +23,6 @@ importers:
       fastmcp:
         specifier: ^3.22.0
         version: 3.22.0
-      shx:
-        specifier: ^0.3.4
-        version: 0.3.4
       zod:
         specifier: ^3.25.76
         version: 3.25.76
@@ -39,6 +36,9 @@ importers:
       '@types/node':
         specifier: ^24.9.1
         version: 24.9.1
+      shx:
+        specifier: ^0.3.4
+        version: 0.3.4
       tsx:
         specifier: ^4.20.6
         version: 4.20.6
@@ -455,7 +455,7 @@ packages:
         optional: true
 
   '@jsr/hk__polymarket@0.2.1':
-    resolution: {integrity: sha512-rK4IbprOl9ApPOHnai7Ajz8NYesD+PfZK54244oAXlgFvUW906MioQoMBQSpSMgc6dWOTIGgPBfKByWoUy0NoA==, tarball: https://npm.jsr.io/~/11/@jsr/hk__polymarket/0.2.1.tgz}
+    resolution: {integrity: sha512-rK4IbprOl9ApPOHnai7Ajz8NYesD+PfZK54244oAXlgFvUW906MioQoMBQSpSMgc6dWOTIGgPBfKByWoUy0NoA==}
 
   '@manypkg/find-root@1.1.0':
     resolution: {integrity: sha512-mki5uBvhHzO8kYYix/WRy2WX8S3B5wdVSc9D6KcU5lQNglP2yt58/VfLuAK49glRXChosY8ap2oJ1qgma3GUVA==}
