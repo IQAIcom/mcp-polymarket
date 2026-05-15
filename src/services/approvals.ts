@@ -6,6 +6,7 @@ import {
 	utils,
 	Wallet,
 } from "ethers";
+import { log } from "../util/log.js";
 import { getConfig, POLYGON_ADDRESSES } from "./config.js";
 
 export type ApprovalCheck = {
@@ -226,7 +227,7 @@ export class PolymarketApprovals {
 			if (current.missing.includes(key)) {
 				const hash = await this.sendTx(fn, nonce++, waitConfs);
 				txHashes.push(hash);
-				process.stderr.write(`Approved ${label}: ${hash}\n`);
+				log(`Approved ${label}: ${hash}`);
 			}
 		}
 

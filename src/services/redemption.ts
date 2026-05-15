@@ -4,6 +4,7 @@
  */
 
 import { type BigNumber, Contract, providers, Wallet } from "ethers";
+import { log } from "../util/log.js";
 import { getConfig, POLYGON_ADDRESSES } from "./config.js";
 
 // Parent collection ID for Polymarket (constant)
@@ -174,7 +175,7 @@ export class PolymarketRedemption {
 							"No CTF tokens to redeem. Balance is 0 - position may have already been redeemed.",
 					};
 				}
-				process.stderr.write(`Token balance: ${tokenBalance.toString()}\n`);
+				log(`Token balance: ${tokenBalance.toString()}`);
 			}
 
 			// Check if market is resolved
@@ -218,9 +219,9 @@ export class PolymarketRedemption {
 				const amounts: [bigint, bigint] =
 					outcomeIndex === 0 ? [tokenBalance, 0n] : [0n, tokenBalance];
 
-				process.stderr.write(`Redeeming negRisk position:` + "\n");
-				process.stderr.write(`  Condition ID: ${conditionIdBytes32}\n`);
-				process.stderr.write(`  Amounts: [${amounts[0]}, ${amounts[1]}]\n`);
+				log(`Redeeming negRisk position:`);
+				log(`  Condition ID: ${conditionIdBytes32}`);
+				log(`  Amounts: [${amounts[0]}, ${amounts[1]}]`);
 
 				const negRiskAdapter = this.getNegRiskAdapterContract();
 				tx = await negRiskAdapter.redeemPositions(conditionIdBytes32, amounts, {
@@ -238,11 +239,9 @@ export class PolymarketRedemption {
 					};
 				}
 
-				process.stderr.write(`Redeeming CTF position:` + "\n");
-				process.stderr.write(`  Condition ID: ${conditionIdBytes32}\n`);
-				process.stderr.write(
-					`  Winning index sets: [${winningIndexSets.join(", ")}]\n`,
-				);
+				log(`Redeeming CTF position:`);
+				log(`  Condition ID: ${conditionIdBytes32}`);
+				log(`  Winning index sets: [${winningIndexSets.join(", ")}]`);
 
 				const ctf = this.getCtfContract();
 				tx = await ctf.redeemPositions(
@@ -256,7 +255,7 @@ export class PolymarketRedemption {
 				);
 			}
 
-			process.stderr.write(`Transaction submitted: ${tx.hash}\n`);
+			log(`Transaction submitted: ${tx.hash}`);
 
 			// Wait for confirmation
 			const receipt = await tx.wait(1);
