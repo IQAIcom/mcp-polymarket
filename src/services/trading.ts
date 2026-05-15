@@ -187,9 +187,7 @@ export class PolymarketTrading {
 		const [tickSize, negRisk, feeRateBps] = await Promise.all([
 			client.getTickSize(tokenId),
 			client.getNegRisk(tokenId),
-			client
-				.getFeeRateBps(tokenId)
-				.catch(() => 0), // Fee rate might not be available for all markets
+			client.getFeeRateBps(tokenId).catch(() => 0), // Fee rate might not be available for all markets
 		]);
 
 		const params: MarketParams = {
