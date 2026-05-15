@@ -1,7 +1,7 @@
 import { AssetType } from "@polymarket/clob-client";
 import { z } from "zod";
-import { ApprovalRequiredError } from "../services/approvals.js";
 import { tradeApi } from "../services/trading.js";
+import { withApprovalGuard } from "../util/with-approval-guard.js";
 
 const getBalanceAllowanceSchema = z.object({
 	assetType: z
@@ -23,15 +23,6 @@ export const getBalanceAllowanceTool = {
 			asset_type: AssetType[args.assetType],
 		};
 		if (args.tokenID) params.token_id = args.tokenID;
-
-		try {
-			const result = await tradeApi.getBalanceAllowance(params);
-			return JSON.stringify(result, null, 2);
-		} catch (err) {
-			if (err instanceof ApprovalRequiredError) {
-				return JSON.stringify(err, null, 2);
-			}
-			throw err;
-		}
+		return withApprovalGuard(() => tradeApi.getBalanceAllowance(params));
 	},
 };

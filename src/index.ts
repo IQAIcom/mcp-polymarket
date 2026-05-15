@@ -3,6 +3,7 @@
 import { readFileSync } from "node:fs";
 import { FastMCP } from "fastmcp";
 import * as tools from "./tools/index.js";
+import { log } from "./util/log.js";
 
 const packageJson = JSON.parse(
 	readFileSync(new URL("../package.json", import.meta.url), "utf8"),
@@ -42,12 +43,10 @@ async function main() {
 		server.addTool(tools.redeemPositionsTool);
 		server.addTool(tools.getPositionsTool);
 
-		process.stderr.write(
-			"Trading features enabled (POLYMARKET_PRIVATE_KEY is configured)\n",
-		);
+		log("Trading features enabled (POLYMARKET_PRIVATE_KEY is configured)");
 	} else {
-		process.stderr.write(
-			"Read-only mode: Set POLYMARKET_PRIVATE_KEY environment variable to enable trading features\n",
+		log(
+			"Read-only mode: Set POLYMARKET_PRIVATE_KEY environment variable to enable trading features",
 		);
 	}
 

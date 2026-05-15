@@ -8,6 +8,7 @@ import type {
 } from "@polymarket/clob-client";
 import { ClobClient, OrderType, Side } from "@polymarket/clob-client";
 import { providers, Wallet } from "ethers";
+import { log } from "../util/log.js";
 import { PolymarketApprovals } from "./approvals.js";
 import { getConfig } from "./config.js";
 
@@ -112,11 +113,11 @@ export class PolymarketTrading {
 			cfg.funderAddress,
 		);
 
-		process.stderr.write("Polymarket trading client initialized\n");
-		process.stderr.write(`  - Signer: ${await ethersSigner.getAddress()}\n`);
-		process.stderr.write(`  - Signature Type: ${cfg.signatureType}\n`);
+		log("Polymarket trading client initialized");
+		log(`  - Signer: ${await ethersSigner.getAddress()}`);
+		log(`  - Signature Type: ${cfg.signatureType}`);
 		if (cfg.funderAddress) {
-			process.stderr.write(`  - Funder/Proxy: ${cfg.funderAddress}\n`);
+			log(`  - Funder/Proxy: ${cfg.funderAddress}`);
 		}
 	}
 
@@ -253,12 +254,12 @@ export class PolymarketTrading {
 
 		const client = this.getClient();
 
-		process.stderr.write(`Placing ${args.side} order:\n`);
-		process.stderr.write(`   Token: ${args.tokenId}\n`);
-		process.stderr.write(`   Price: ${args.price}\n`);
-		process.stderr.write(`   Size: ${args.size}\n`);
-		process.stderr.write(
-			`   Market: negRisk=${marketParams.negRisk}, tickSize=${marketParams.tickSize}\n`,
+		log(`Placing ${args.side} order:`);
+		log(`   Token: ${args.tokenId}`);
+		log(`   Price: ${args.price}`);
+		log(`   Size: ${args.size}`);
+		log(
+			`   Market: negRisk=${marketParams.negRisk}, tickSize=${marketParams.tickSize}`,
 		);
 
 		return client.createAndPostOrder(
@@ -304,11 +305,11 @@ export class PolymarketTrading {
 
 		const client = this.getClient();
 
-		process.stderr.write(`Placing ${args.side} market order:\n`);
-		process.stderr.write(`   Token: ${args.tokenId}\n`);
-		process.stderr.write(`   Amount: ${args.amount}\n`);
-		process.stderr.write(
-			`   Market: negRisk=${marketParams.negRisk}, tickSize=${marketParams.tickSize}\n`,
+		log(`Placing ${args.side} market order:`);
+		log(`   Token: ${args.tokenId}`);
+		log(`   Amount: ${args.amount}`);
+		log(
+			`   Market: negRisk=${marketParams.negRisk}, tickSize=${marketParams.tickSize}`,
 		);
 
 		return client.createAndPostMarketOrder(
