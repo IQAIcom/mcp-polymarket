@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.0.18
+
+### Patch Changes
+
+- [#57](https://github.com/IQAIcom/mcp-polymarket/pull/57) [`c67679f`](https://github.com/IQAIcom/mcp-polymarket/commit/c67679fa761114780e7524a2f71421ad992ce04c) Thanks [@MarvelNwachukwu](https://github.com/MarvelNwachukwu)! - Cleanup batch:
+
+  - Fix stderr log lines running together due to missing trailing newlines on init/order/market-order logs (server log output is no longer corrupted into one line)
+  - Reject invalid `outcomeIndex` for negRisk redemption instead of silently defaulting to outcome 0 — prevents accidentally redeeming the losing side when the caller passes a bad value
+  - Move `shx` from `dependencies` to `devDependencies` so npm consumers don't pull it in
+
 ## 0.0.17
 
 ### Patch Changes
