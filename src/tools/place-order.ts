@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { ApprovalRequiredError } from "../services/approvals.js";
 import { tradeApi } from "../services/trading.js";
+import { withApprovalGuard } from "../util/with-approval-guard.js";
 
 const placeOrderSchema = z.object({
 	tokenId: z.string().describe("The token ID of the market outcome to trade"),
@@ -31,21 +31,14 @@ export const placeOrderTool = {
 	description:
 		"Place a limit order on Polymarket at a specific price. Specify the number of shares (size) and price (0-1). For both BUY and SELL, you specify the number of shares you want to trade. Example: size=10, price=0.6 means buy/sell 10 shares at $0.60 per share (total: $6).",
 	parameters: placeOrderSchema,
-	execute: async (args: z.infer<typeof placeOrderSchema>) => {
-		try {
-			const result = await tradeApi.placeOrder({
+	execute: async (args: z.infer<typeof placeOrderSchema>) =>
+		withApprovalGuard(() =>
+			tradeApi.placeOrder({
 				tokenId: args.tokenId,
 				price: args.price,
 				size: args.size,
 				side: args.side,
 				...(args.orderType && { orderType: args.orderType }),
-			});
-			return JSON.stringify(result, null, 2);
-		} catch (err) {
-			if (err instanceof ApprovalRequiredError) {
-				return JSON.stringify(err, null, 2);
-			}
-			throw err;
-		}
-	},
+			}),
+		),
 };
