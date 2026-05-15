@@ -208,17 +208,15 @@ export class PolymarketRedemption {
 					};
 				}
 
-				// Determine amounts array based on which outcome the user holds
-				// amounts[0] = outcome 0 (Yes) tokens, amounts[1] = outcome 1 (No) tokens
-				let amounts: [bigint, bigint];
-				if (outcomeIndex === 0) {
-					amounts = [tokenBalance, 0n];
-				} else if (outcomeIndex === 1) {
-					amounts = [0n, tokenBalance];
-				} else {
-					// Unknown outcome - try Yes first (legacy behavior)
-					amounts = [tokenBalance, 0n];
+				if (outcomeIndex !== 0 && outcomeIndex !== 1) {
+					return {
+						success: false,
+						error: "outcomeIndex must be 0 or 1 for negRisk redemption.",
+					};
 				}
+				// amounts[0] = outcome 0 (Yes) tokens, amounts[1] = outcome 1 (No) tokens
+				const amounts: [bigint, bigint] =
+					outcomeIndex === 0 ? [tokenBalance, 0n] : [0n, tokenBalance];
 
 				process.stderr.write(`Redeeming negRisk position:` + "\n");
 				process.stderr.write(`  Condition ID: ${conditionIdBytes32}` + "\n");
