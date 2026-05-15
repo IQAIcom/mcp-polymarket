@@ -1,10 +1,13 @@
-name: Push checks (Template - Manual Trigger)
+name: PR checks
 
-# To enable, change to e.g.: on: [push]
-on: workflow_dispatch
+on:
+  pull_request:
+  push:
+    branches:
+      - main
 
 jobs:
-  Checkout:
+  checks:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

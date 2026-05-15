@@ -112,11 +112,11 @@ export class PolymarketTrading {
 			cfg.funderAddress,
 		);
 
-		process.stderr.write("Polymarket trading client initialized");
-		process.stderr.write(`  - Signer: ${await ethersSigner.getAddress()}` + "\n");
-		process.stderr.write(`  - Signature Type: ${cfg.signatureType}` + "\n");
+		process.stderr.write("Polymarket trading client initialized\n");
+		process.stderr.write(`  - Signer: ${await ethersSigner.getAddress()}\n`);
+		process.stderr.write(`  - Signature Type: ${cfg.signatureType}\n`);
 		if (cfg.funderAddress) {
-			process.stderr.write(`  - Funder/Proxy: ${cfg.funderAddress}` + "\n");
+			process.stderr.write(`  - Funder/Proxy: ${cfg.funderAddress}\n`);
 		}
 	}
 
@@ -253,12 +253,12 @@ export class PolymarketTrading {
 
 		const client = this.getClient();
 
-		process.stderr.write(`Placing ${args.side} order:` + "\n");
-		process.stderr.write(`   Token: ${args.tokenId}` + "\n");
-		process.stderr.write(`   Price: ${args.price}` + "\n");
-		process.stderr.write(`   Size: ${args.size}` + "\n");
+		process.stderr.write(`Placing ${args.side} order:\n`);
+		process.stderr.write(`   Token: ${args.tokenId}\n`);
+		process.stderr.write(`   Price: ${args.price}\n`);
+		process.stderr.write(`   Size: ${args.size}\n`);
 		process.stderr.write(
-			`   Market: negRisk=${marketParams.negRisk}, tickSize=${marketParams.tickSize}`,
+			`   Market: negRisk=${marketParams.negRisk}, tickSize=${marketParams.tickSize}\n`,
 		);
 
 		return client.createAndPostOrder(
@@ -304,11 +304,11 @@ export class PolymarketTrading {
 
 		const client = this.getClient();
 
-		process.stderr.write(`Placing ${args.side} market order:` + "\n");
-		process.stderr.write(`   Token: ${args.tokenId}` + "\n");
-		process.stderr.write(`   Amount: ${args.amount}` + "\n");
+		process.stderr.write(`Placing ${args.side} market order:\n`);
+		process.stderr.write(`   Token: ${args.tokenId}\n`);
+		process.stderr.write(`   Amount: ${args.amount}\n`);
 		process.stderr.write(
-			`   Market: negRisk=${marketParams.negRisk}, tickSize=${marketParams.tickSize}`,
+			`   Market: negRisk=${marketParams.negRisk}, tickSize=${marketParams.tickSize}\n`,
 		);
 
 		return client.createAndPostMarketOrder(
